@@ -4,33 +4,12 @@ import chainer.links as L
 import chainer.functions as F
 from chainer import training
 from chainer.training import extensions
+from chainer.backends import cuda
 import random
 import mnist
-
-
-class LinearModel(chainer.Chain):
-    def __init__(self, n_in, n_out):
-        super(LinearModel, self).__init__()
-        with self.init_scope():
-            self.w = L.Linear(n_in, n_out)
-
-    def __call__(self, x):
-        return F.softmax(self.w(x))
-
-
-class MLP(chainer.Chain):
-    def __init__(self, n_units, n_out):
-        super(MLP, self).__init__()
-        with self.init_scope():
-            # the size of the inputs to each layer will be inferred
-            self.l1 = L.Linear(None, n_units)  # n_in -> n_units
-            self.l2 = L.Linear(None, n_units)  # n_units -> n_units
-            self.l3 = L.Linear(None, n_out)  # n_units -> n_out
-
-    def forward(self, x):
-        h1 = F.relu(self.l1(x))
-        h2 = F.relu(self.l2(h1))
-        return F.softmax(self.l3(h2))
+import cifar
+import argparse
+import network
 
 
 class Dataset(object):
@@ -69,7 +48,7 @@ class Dataset(object):
 
 
 class Updater(chainer.training.StandardUpdater):
-    def __init__(self, model, data, iter, optimizer, lam=0.1, mu=4.0, device=-1):
+    def __init__(self, model, data, iter, optimizer, lam=0.2, mu=6.0, device=-1):
         self.model = model
         self.data = data
         self.lam = lam
@@ -103,6 +82,7 @@ class Updater(chainer.training.StandardUpdater):
 
         optimizer.update()
 
+        chainer.reporter.report({'main/loss': loss})
         chainer.reporter.report({'main/loss_cc': loss_cc})
         chainer.reporter.report({'main/loss_mut_info': loss_mut_info})
         chainer.reporter.report({'main/H_Y': H_Y})
@@ -134,17 +114,24 @@ def data_generate():
     return Dataset(instance, labels)
 
 
-def load_data(data_type='toy'):
+def load_data(data_type='toy', ndim=1):
     if data_type == 'toy':
-        return data_generate()
+        return data_generate(), data_generate()
+    elif data_type == 'mnist':
+        (train_images, train_labels), (test_images, test_labels) = mnist.get_mnist(ndim=ndim)
+        return Dataset(train_images, train_labels), Dataset(test_images, test_labels)
+    elif data_type == 'cifar10':
+        (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar10()
+        return Dataset(train_images, train_labels), Dataset(test_images, test_labels)
     else:
-        (train_images, train_labels), _ = mnist.get_mnist()
-        return Dataset(train_images, train_labels)
+        raise ValueError
 
 
-def check_cluster(model, train, num_classes, num_cluster):
-    xx = model(chainer.dataset.convert.concat_examples(train)[0])
-    cc = np.argmax(xx.data, axis=1)
+def check_cluster(model, train, num_classes, num_cluster, device=-1):
+    xx = model(chainer.dataset.convert.concat_examples(train, device=device)[0]).data
+    if device >= 0:
+        xx = cuda.to_cpu(xx)
+    cc = np.argmax(xx, axis=1)
 
     partition = train._partition
     cluster = [tuple(np.sum(cc[partition[k]:partition[k + 1]] == c)
@@ -153,21 +140,39 @@ def check_cluster(model, train, num_classes, num_cluster):
 
 
 def main():
-    data_type = 'mnist'
-    model_type = 'MLP'
-    gpu = -1
+    parser = argparse.ArgumentParser(description='Chainer example: MNIST')
+    parser.add_argument('--batchsize', '-b', type=int, default=256,
+                        help='Number of images in each mini-batch')
+    parser.add_argument('--data_type', '-d', type=str, default='mnist')
+    parser.add_argument('--model_type', '-m', type=str, default='CNN')
+    parser.add_argument('--gpu', '-g', type=int, default=-1)
+    parser.add_argument('--cluster', '-c', type=int, default=2)
+    args = parser.parse_args()
 
+    gpu = args.gpu
+    data_type = args.data_type
+    model_type = args.model_type
+    num_cluster = args.cluster
+
+    ndim = 1
     if data_type == 'toy':
-        model = LinearModel(2, 2)
-        num_cluster = 2
+        model = network.LinearModel(2, 2)
         num_classes = 2
-    else:
-        num_cluster = 2
+    elif data_type == 'mnist':
         num_classes = 10
         if model_type == 'linear':
-            model = LinearModel(784, num_cluster)
+            model = network.LinearModel(784, num_cluster)
         elif model_type == 'MLP':
-            model = MLP(1000, num_cluster)
+            model = network.MLP(1000, num_cluster)
+        elif model_type == 'CNN':
+            ndim = 3
+            model = network.CNN(num_cluster)
+        else:
+            raise ValueError
+    else:
+        num_classes = 10
+        if model_type == 'Resnet50':
+            model = network.ResNet50(num_cluster)
         else:
             raise ValueError
 
@@ -179,22 +184,24 @@ def main():
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
 
-    train = load_data(data_type)
+    train, test = load_data(data_type, ndim)
 
-    train_iter = chainer.iterators.SerialIterator(train, batch_size=128)
+    train_iter = chainer.iterators.SerialIterator(train, batch_size=256)
 
-    updater = Updater(model, train, train_iter, optimizer)
+    updater = Updater(model, train, train_iter, optimizer, device=gpu)
 
-    trainer = training.Trainer(updater, (5, 'epoch'), out='result/result.txt')
+    trainer = training.Trainer(updater, (10, 'epoch'), out='result/result.txt')
 
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(
-        ['epoch', 'main/loss_cc', 'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
+        ['epoch', 'main/loss', 'main/loss_cc', 'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
 
     trainer.run()
 
-    print(check_cluster(model, train, num_classes, num_cluster))
-
+    res = check_cluster(model, train, num_classes, num_cluster, device=gpu)
+    print(res)
+    res = check_cluster(model, test, num_classes, num_cluster, device=gpu)
+    print(res)
 
 if __name__ == '__main__':
     main()
