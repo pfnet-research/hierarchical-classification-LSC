@@ -24,6 +24,8 @@ from chainer.training import extensions
 from chainercv import transforms
 import cv2 as cv
 
+import network
+
 USE_OPENCV = True
 
 
@@ -176,15 +178,18 @@ if __name__ == '__main__':
         args.gpus = gpus
 
     # Load model
+    """
     ext = os.path.splitext(args.model_file)[1]
     mod_path = '.'.join(os.path.split(args.model_file)).replace(ext, '')
     mod = import_module(mod_path)
     net = getattr(mod, args.model_name)(10)
+    """
+    net = network.ResNet50(10)
 
     # create result dir
     result_dir = create_result_dir(args.model_name)
-    shutil.copy(args.model_file, os.path.join(
-        result_dir, os.path.basename(args.model_file)))
+    # shutil.copy(args.model_file, os.path.join(
+        # result_dir, os.path.basename(args.model_file)))
     with open(os.path.join(result_dir, 'args'), 'w') as fp:
         fp.write(json.dumps(vars(args)))
     print(json.dumps(vars(args), sort_keys=True, indent=4))
