@@ -10,6 +10,7 @@ import mnist
 import cifar
 import argparse
 import network
+import chainer
 
 
 class Dataset(object):
@@ -48,7 +49,7 @@ class Dataset(object):
 
 
 class Updater(chainer.training.StandardUpdater):
-    def __init__(self, model, data, iter, optimizer, lam=0.2, mu=6.0, device=-1):
+    def __init__(self, model, data, iter, optimizer, lam=0.5, mu=10.0, device=-1):
         self.model = model
         self.data = data
         self.lam = lam
@@ -68,14 +69,14 @@ class Updater(chainer.training.StandardUpdater):
         y = self.model(instances)
 
         H_Y = self.entropy((F.sum(y, axis=0) / batchsize), axis=0)
-        H_YX = F.sum(self.entropy(y, axis=1), axis=0) / batchsize
+        H_YX = 0.0  # F.sum(self.entropy(y, axis=1), axis=0) / batchsize
         loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
         sampled_y = self.model(sampled_instances)
         sampled_y.unchain_backward()
 
-        loss_cc = self.loss_class_clustering(y, sampled_y) / batchsize
+        loss_cc = self.loss_cross_entropy(y, sampled_y) / batchsize
 
         loss = loss_cc + loss_mut_info
         loss.backward()
@@ -95,6 +96,12 @@ class Updater(chainer.training.StandardUpdater):
     @staticmethod
     def loss_class_clustering(p, q):
         return F.sum(p * F.log((p + 1e-8) / (q + 1e-8)))
+
+    @staticmethod
+    def loss_cross_entropy(p, q):
+        index = F.argmax(q, axis=1).data
+        u = F.select_item(p, index)
+        return -F.sum(F.log(u + 1e-8))
 
 
 def data_generate():
@@ -127,11 +134,19 @@ def load_data(data_type='toy', ndim=1):
         raise ValueError
 
 
-def check_cluster(model, train, num_classes, num_cluster, device=-1):
-    xx = model(chainer.dataset.convert.concat_examples(train, device=device)[0]).data
-    if device >= 0:
-        xx = cuda.to_cpu(xx)
-    cc = np.argmax(xx, axis=1)
+def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=-1):
+    i, N = 0, len(train)
+    cc = None
+    while i <= N:
+        xx = model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0]).data
+        if device >= 0:
+            xx = cuda.to_cpu(xx)
+
+        if cc is None:
+            cc = np.argmax(xx, axis=1)
+        else:
+            cc = np.append(cc, np.argmax(xx, axis=1))
+        i += batchsize
 
     partition = train._partition
     cluster = [tuple(np.sum(cc[partition[k]:partition[k + 1]] == c)
@@ -144,9 +159,12 @@ def main():
     parser.add_argument('--batchsize', '-b', type=int, default=256,
                         help='Number of images in each mini-batch')
     parser.add_argument('--data_type', '-d', type=str, default='mnist')
-    parser.add_argument('--model_type', '-m', type=str, default='CNN')
+    parser.add_argument('--model_type', '-m', type=str, default='DNN')
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--cluster', '-c', type=int, default=2)
+    parser.add_argument('--weight_decay', '-w', type=float, default=0.0005)
+    parser.add_argument('--epoch', '-e', type=int, default=10)
+    parser.add_argument('--mu', '-mu', type=float, default=6.0)
     args = parser.parse_args()
 
     gpu = args.gpu
@@ -162,7 +180,7 @@ def main():
         num_classes = 10
         if model_type == 'linear':
             model = network.LinearModel(784, num_cluster)
-        elif model_type == 'MLP':
+        elif model_type == 'DNN':
             model = network.MLP(1000, num_cluster)
         elif model_type == 'CNN':
             ndim = 3
@@ -173,6 +191,12 @@ def main():
         num_classes = 10
         if model_type == 'Resnet50':
             model = network.ResNet50(num_cluster)
+        elif model_type == 'Resnet101':
+            model = network.ResNet101(num_cluster)
+        elif model_type == 'VGG':
+            model = network.VGG(num_cluster)
+        elif model_type == 'CNN':
+            model = network.CNN(num_cluster)
         else:
             raise ValueError
 
@@ -183,18 +207,21 @@ def main():
 
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
+    if args.weight_decay > 0:
+        optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
 
     train, test = load_data(data_type, ndim)
 
-    train_iter = chainer.iterators.SerialIterator(train, batch_size=256)
+    train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
 
-    updater = Updater(model, train, train_iter, optimizer, device=gpu)
+    updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
 
-    trainer = training.Trainer(updater, (10, 'epoch'), out='result/result.txt')
+    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out='result/result.txt')
 
-    trainer.extend(extensions.LogReport())
+    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
     trainer.extend(extensions.PrintReport(
-        ['epoch', 'main/loss', 'main/loss_cc', 'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
+        ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
+         'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
 
     trainer.run()
 
@@ -202,6 +229,7 @@ def main():
     print(res)
     res = check_cluster(model, test, num_classes, num_cluster, device=gpu)
     print(res)
+
 
 if __name__ == '__main__':
     main()
