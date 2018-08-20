@@ -56,15 +56,28 @@ class ResNet(chainer.Chain):
             self.res6 = Block(1024, 512, 2048, n_blocks[3], 2)
             self.fc7 = L.Linear(None, n_class)
 
-    def __call__(self, x):
+    def __call__(self, x, unchain=False):
         h = F.relu(self.bn2(self.conv1(x)))
         h = self.res3(h)
         h = self.res4(h)
         h = self.res5(h)
         h = self.res6(h)
         h = F.average_pooling_2d(h, h.shape[2:])
+        if unchain:
+            h.unchain_backward()
         h = self.fc7(h)
-        return F.softmax(h)
+        return h
+
+    def serialize(self, serializer, not_load_list=None):
+        super(chainer.Chain, self).serialize(serializer)
+        if not_load_list is None:
+            not_load_list = []
+
+        d = self.__dict__
+        for name in self._children:
+            if name in not_load_list:
+                continue
+            d[name].serialize(serializer[name])
 
 
 class ResNet50(ResNet):
