@@ -13,10 +13,7 @@ import network
 from importlib import import_module
 import sys, os
 import numpy as np
-pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(pardir)
 
-import mnist
 import cifar
 
 
@@ -76,7 +73,7 @@ class Updater(chainer.training.StandardUpdater):
         y = F.softmax(self.model(instances, unchain=True))
 
         H_Y = self.entropy((F.sum(y, axis=0) / batchsize), axis=0)
-        H_YX = 0.0  # F.sum(self.entropy(y, axis=1), axis=0) / batchsize
+        H_YX = F.sum(self.entropy(y, axis=1), axis=0) / batchsize
         loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
@@ -147,6 +144,8 @@ def load_data(data_type='toy', ndim=1):
 def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=-1):
     i, N = 0, len(train)
     cc = None
+    ss = None
+
     while i <= N:
         xx = model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0]).data
         if device >= 0:
@@ -156,12 +155,17 @@ def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=
             cc = np.argmax(xx, axis=1)
         else:
             cc = np.append(cc, np.argmax(xx, axis=1))
+
+        if ss is None:
+            ss = np.sum(xx, axis=0) / xx.shape[0]
+        else:
+            ss = ss + np.sum(xx, axis=0) / xx.shape[0]
         i += batchsize
 
     partition = train._partition
     cluster = [tuple(np.sum(cc[partition[k]:partition[k + 1]] == c)
                      for c in range(num_cluster)) for k in range(num_classes)]
-    return cluster
+    return cluster, ss
 
 
 class MyNpzDeserializer(serializers.NpzDeserializer):
@@ -179,18 +183,18 @@ def main():
     parser = argparse.ArgumentParser(description='Chainer example: MNIST')
     parser.add_argument('--batchsize', '-b', type=int, default=256,
                         help='Number of images in each mini-batch')
-    parser.add_argument('--data_type', '-d', type=str, default='mnist')
-    parser.add_argument('--model_type', '-m', type=str, default='DNN')
+    parser.add_argument('--data_type', '-d', type=str, default='cifar100')
+    parser.add_argument('--model_type', '-m', type=str, default='Resnet50')
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--cluster', '-c', type=int, default=2)
     parser.add_argument('--weight_decay', '-w', type=float, default=0.0005)
     parser.add_argument('--epoch', '-e', type=int, default=10)
-    parser.add_argument('--mu', '-mu', type=float, default=6.0)
+    parser.add_argument('--mu', '-mu', type=float, default=20.0)
     args = parser.parse_args()
 
     model_file = 'models/ResNet.py'
     model_name = 'ResNet50'
-    model_path = "./../results/228614/ResNet50_2018-08-16_11-52-23_0/model_500.npz"  # TODO: write model_path
+    model_path = "/home/user/.chainer/pretrained/cifar10/model_500.npz"
 
     gpu = args.gpu
     data_type = args.data_type
@@ -239,8 +243,8 @@ def main():
 
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
-    if args.weight_decay > 0:
-        optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
+    # if args.weight_decay > 0:
+        # optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
 
     train, test = load_data(data_type, ndim)
 
@@ -250,18 +254,29 @@ def main():
 
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out='result/result.txt')
 
-    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
+    trainer.extend(extensions.LogReport(trigger=(100, 'iteration')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
          'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
 
     trainer.run()
 
-    res = check_cluster(model, train, num_classes, num_cluster, device=gpu)
+    res, ss = check_cluster(model, train, num_classes, num_cluster, device=gpu)
+    res_sum = tuple(0 for _ in range(num_cluster))
+    for i in range(num_classes):
+        res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_cluster))
     print(res)
-    res = check_cluster(model, test, num_classes, num_cluster, device=gpu)
+    print(res_sum)
+    print(ss)
+    res, ss = check_cluster(model, test, num_classes, num_cluster, device=gpu)
+    res_sum = tuple(0 for _ in range(num_cluster))
+    for i in range(num_classes):
+        res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_cluster))
     print(res)
+    print(res_sum)
+    print(ss)
 
 
 if __name__ == '__main__':
+    print(267)
     main()

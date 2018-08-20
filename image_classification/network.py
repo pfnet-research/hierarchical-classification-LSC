@@ -61,10 +61,10 @@ class ResNet(chainer.Chain):
         h = self.res3(h)
         h = self.res4(h)
         h = self.res5(h)
-        h = self.res6(h)
-        h = F.average_pooling_2d(h, h.shape[2:])
         if unchain:
             h.unchain_backward()
+        h = self.res6(h)
+        h = F.average_pooling_2d(h, h.shape[2:])
         h = self.fc7(h)
         return h
 

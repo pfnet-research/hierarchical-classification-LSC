@@ -158,8 +158,8 @@ def main():
     parser = argparse.ArgumentParser(description='Chainer example: MNIST')
     parser.add_argument('--batchsize', '-b', type=int, default=256,
                         help='Number of images in each mini-batch')
-    parser.add_argument('--data_type', '-d', type=str, default='mnist')
-    parser.add_argument('--model_type', '-m', type=str, default='DNN')
+    parser.add_argument('--data_type', '-d', type=str, default='cifar10')
+    parser.add_argument('--model_type', '-m', type=str, default='Resnet50')
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--cluster', '-c', type=int, default=2)
     parser.add_argument('--weight_decay', '-w', type=float, default=0.0005)
@@ -232,4 +232,5 @@ def main():
 
 
 if __name__ == '__main__':
+    print("start")
     main()
