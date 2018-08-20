@@ -147,7 +147,7 @@ def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=
     ss = None
 
     while i <= N:
-        xx = model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0]).data
+        xx = F.softmax(model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0]).data)
         if device >= 0:
             xx = cuda.to_cpu(xx)
 
