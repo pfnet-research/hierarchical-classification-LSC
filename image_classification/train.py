@@ -243,8 +243,8 @@ def main():
 
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
-    # if args.weight_decay > 0:
-        # optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
+    if args.weight_decay > 0:
+        optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
 
     train, test = load_data(data_type, ndim)
 
