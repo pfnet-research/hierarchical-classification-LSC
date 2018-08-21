@@ -133,7 +133,6 @@ def _get_cifar(name, withlabel, ndim, scale):
         return {'train_x': train_x, 'train_y': train_y,
                 'test_x': test_x, 'test_y': test_y}
 
-    print(npz_path)
     raw = download.cache_or_load_file(npz_path, creator, numpy.load)
     train = _preprocess_cifar(raw['train_x'], raw['train_y'], withlabel,
                               ndim, scale)

@@ -126,6 +126,8 @@ def data_generate():
 
 
 def load_data(data_type='toy', ndim=1):
+    mean = np.array([125.3069, 122.95015, 113.866])
+    std = np.array([62.99325, 62.088604, 66.70501])
     if data_type == 'toy':
         return data_generate(), data_generate()
     elif data_type == 'mnist':
@@ -135,7 +137,11 @@ def load_data(data_type='toy', ndim=1):
         (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar10()
         return Dataset(train_images, train_labels), Dataset(test_images, test_labels)
     elif data_type == 'cifar100':
-        (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar100()
+        (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar100(scale=255.0)
+        train_images -= mean[:, None, None]
+        test_images -= mean[:, None, None]
+        train_images /= std[:, None, None]
+        test_images /= std[:, None, None]
         return Dataset(train_images, train_labels), Dataset(test_images, test_labels)
     else:
         raise ValueError
@@ -147,7 +153,7 @@ def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=
     ss = None
 
     while i <= N:
-        xx = F.softmax(model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0]).data)
+        xx = F.softmax(model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0])).data
         if device >= 0:
             xx = cuda.to_cpu(xx)
 
@@ -157,11 +163,12 @@ def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=
             cc = np.append(cc, np.argmax(xx, axis=1))
 
         if ss is None:
-            ss = np.sum(xx, axis=0) / xx.shape[0]
+            ss = np.sum(xx, axis=0)
         else:
-            ss = ss + np.sum(xx, axis=0) / xx.shape[0]
+            ss = ss + np.sum(xx, axis=0)
         i += batchsize
 
+    ss /= N
     partition = train._partition
     cluster = [tuple(np.sum(cc[partition[k]:partition[k + 1]] == c)
                      for c in range(num_cluster)) for k in range(num_classes)]
@@ -252,7 +259,7 @@ def main():
 
     updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
 
-    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out='result/result.txt')
+    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out='result')
 
     trainer.extend(extensions.LogReport(trigger=(100, 'iteration')))
     trainer.extend(extensions.PrintReport(
@@ -265,18 +272,18 @@ def main():
     res_sum = tuple(0 for _ in range(num_cluster))
     for i in range(num_classes):
         res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_cluster))
-    print(res)
-    print(res_sum)
-    print(ss)
+
+    with open('train.res', 'w') as f:
+        print(res, res_sum, ss, file=f)
+
     res, ss = check_cluster(model, test, num_classes, num_cluster, device=gpu)
     res_sum = tuple(0 for _ in range(num_cluster))
     for i in range(num_classes):
         res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_cluster))
-    print(res)
-    print(res_sum)
-    print(ss)
+
+    with open('test.res', 'w') as f:
+        print(res, res_sum, ss, file=f)
 
 
 if __name__ == '__main__':
-    print(267)
     main()

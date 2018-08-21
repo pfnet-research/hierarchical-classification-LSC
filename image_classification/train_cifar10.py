@@ -196,7 +196,9 @@ if __name__ == '__main__':
 
     train, valid = cifar.get_cifar10(scale=255.)
     mean = np.mean([x for x, _ in train], axis=(0, 2, 3))
+    print(mean)
     std = np.std([x for x, _ in train], axis=(0, 2, 3))
+    print(std)
 
     train_transform = partial(
         transform, mean=mean, std=std, random_angle=args.random_angle,
