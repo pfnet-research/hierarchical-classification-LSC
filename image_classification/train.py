@@ -14,8 +14,8 @@ from importlib import import_module
 import sys, os
 import numpy as np
 
-import separate
 import cifar
+import separate
 
 
 class Dataset(object):
@@ -263,7 +263,7 @@ def main():
 
     trainer = training.Trainer(updater, (args.epoch, 'epoch'), out='result')
 
-    trainer.extend(extensions.LogReport(trigger=(100, 'iteration')))
+    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
          'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
@@ -277,6 +277,7 @@ def main():
 
     with open('train.res', 'w') as f:
         print(res, res_sum, ss, file=f)
+    print(res, res_sum, ss)
 
     res, ss = check_cluster(model, test, num_classes, num_cluster, device=gpu)
     res_sum = tuple(0 for _ in range(num_cluster))
@@ -285,6 +286,7 @@ def main():
 
     with open('test.res', 'w') as f:
         print(res, res_sum, ss, file=f)
+    print(res, res_sum, ss)
 
     cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu)
     print(cluster_label)

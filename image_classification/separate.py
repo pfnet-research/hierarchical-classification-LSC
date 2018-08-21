@@ -27,3 +27,14 @@ def det_cluster(model, train, num_classes, batchsize=128, device=-1):
         cluster_label.append(cluster)
 
     return cluster_label
+
+
+def assign(cluster_label, num_classes, num_clusters):
+    count_classes = [0 for _ in range(num_clusters)]
+    res = []
+    for i in range(num_classes):
+        cluster = cluster_label[i]
+        res.append((cluster, count_classes[cluster]))
+        count_classes[cluster] += 1
+
+    return res
