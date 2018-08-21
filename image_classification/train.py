@@ -75,6 +75,8 @@ class Updater(chainer.training.StandardUpdater):
 
         H_Y = self.entropy((F.sum(y, axis=0) / batchsize), axis=0)
         H_YX = F.sum(self.entropy(y, axis=1), axis=0) / batchsize
+        chainer.reporter.report({'main/H_YX': H_YX})
+        H_YX = 0
         loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
@@ -92,7 +94,6 @@ class Updater(chainer.training.StandardUpdater):
         chainer.reporter.report({'main/loss_cc': loss_cc})
         chainer.reporter.report({'main/loss_mut_info': loss_mut_info})
         chainer.reporter.report({'main/H_Y': H_Y})
-        chainer.reporter.report({'main/H_YX': H_YX})
 
     @staticmethod
     def entropy(x, axis=0):
@@ -199,6 +200,7 @@ def main():
     parser.add_argument('--weight_decay', '-w', type=float, default=0.0005)
     parser.add_argument('--epoch', '-e', type=int, default=10)
     parser.add_argument('--mu', '-mu', type=float, default=20.0)
+    parser.add_argument('--out', '-o', type=str, default='results')
     args = parser.parse_args()
 
     model_file = 'models/ResNet.py'
@@ -261,12 +263,15 @@ def main():
 
     updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
 
-    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out='result')
+    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
 
-    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
          'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
+    trainer.extend(extensions.snapshot(), trigger=(1, 'epoch'))
+
+
+    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
 
     trainer.run()
 
