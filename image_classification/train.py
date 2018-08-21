@@ -14,6 +14,7 @@ from importlib import import_module
 import sys, os
 import numpy as np
 
+import separate
 import cifar
 
 
@@ -153,6 +154,7 @@ def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=
     ss = None
 
     while i <= N:
+        # concat_examplesは(instances, labels)を返す。
         xx = F.softmax(model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0])).data
         if device >= 0:
             xx = cuda.to_cpu(xx)
@@ -283,6 +285,9 @@ def main():
 
     with open('test.res', 'w') as f:
         print(res, res_sum, ss, file=f)
+
+    cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu)
+    print(cluster_label)
 
 
 if __name__ == '__main__':
