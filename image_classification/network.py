@@ -72,11 +72,15 @@ class ResNet(chainer.Chain):
         h = F.relu(self.bn2(self.conv1(x)))
         h = self.res3(h)
         h = self.res4(h)
-        h = self.res5(h)
         if unchain:
             h.unchain_backward()
+        h = self.res5(h)
         h = self.res6(h)
         h = F.average_pooling_2d(h, h.shape[2:])
+        return h
+
+    def cluster(self, h):
+        h = self.fc7(h)
         return h
 
     def serialize(self, serializer, not_load_list=None):

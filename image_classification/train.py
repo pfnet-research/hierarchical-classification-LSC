@@ -270,7 +270,6 @@ def main():
          'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
     trainer.extend(extensions.snapshot(), trigger=(1, 'epoch'))
 
-
     trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
 
     trainer.run()

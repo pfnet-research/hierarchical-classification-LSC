@@ -9,7 +9,8 @@ def det_cluster(model, train, num_classes, batchsize=128, device=-1):
     res = None
 
     while i <= N:
-        xx = F.softmax(model(chainer.dataset.convert.concat_examples(train[i:i + batchsize], device=device)[0])).data
+        xx = -F.log(F.softmax(model(
+            chainer.dataset.convert.concat_examples(train[i:i + batchsize], device=device)[0]))).data
         if device >= 0:
             xx = cuda.to_cpu(xx)
 
@@ -23,7 +24,7 @@ def det_cluster(model, train, num_classes, batchsize=128, device=-1):
 
     cluster_label = []
     for i in range(num_classes):
-        cluster = np.argmax(np.sum(res[partition[i]:partition[i+1]], axis=0))
+        cluster = np.argmin(np.sum(res[partition[i]:partition[i+1]], axis=0))
         cluster_label.append(cluster)
 
     return cluster_label
