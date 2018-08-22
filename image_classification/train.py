@@ -80,8 +80,8 @@ class Updater(chainer.training.StandardUpdater):
         loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
-        sampled_y = F.softmax(self.model(sampled_instances))
-        sampled_y.unchain_backward()
+        with chainer.using_config('train', False):
+            sampled_y = F.softmax(self.model(sampled_instances))
 
         loss_cc = self.loss_cross_entropy(y, sampled_y) / batchsize
 
@@ -150,31 +150,32 @@ def load_data(data_type='toy', ndim=1):
 
 
 def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=-1):
-    i, N = 0, len(train)
-    cc = None
-    ss = None
+    with chainer.using_config('train', False):
+        i, N = 0, len(train)
+        cc = None
+        ss = None
 
-    while i <= N:
-        # concat_examplesは(instances, labels)を返す。
-        xx = F.softmax(model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0])).data
-        if device >= 0:
-            xx = cuda.to_cpu(xx)
+        while i <= N:
+            # concat_examplesは(instances, labels)を返す。
+            xx = F.softmax(model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0])).data
+            if device >= 0:
+                xx = cuda.to_cpu(xx)
 
-        if cc is None:
-            cc = np.argmax(xx, axis=1)
-        else:
-            cc = np.append(cc, np.argmax(xx, axis=1))
+            if cc is None:
+                cc = np.argmax(xx, axis=1)
+            else:
+                cc = np.append(cc, np.argmax(xx, axis=1))
 
-        if ss is None:
-            ss = np.sum(xx, axis=0)
-        else:
-            ss = ss + np.sum(xx, axis=0)
-        i += batchsize
+            if ss is None:
+                ss = np.sum(xx, axis=0)
+            else:
+                ss = ss + np.sum(xx, axis=0)
+            i += batchsize
 
-    ss /= N
-    partition = train._partition
-    cluster = [tuple(np.sum(cc[partition[k]:partition[k + 1]] == c)
-                     for c in range(num_cluster)) for k in range(num_classes)]
+        ss /= N
+        partition = train._partition
+        cluster = [tuple(np.sum(cc[partition[k]:partition[k + 1]] == c)
+                         for c in range(num_cluster)) for k in range(num_classes)]
     return cluster, ss
 
 

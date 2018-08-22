@@ -105,18 +105,22 @@ class Updater(chainer.training.StandardUpdater):
 
 
 def data_generate():
-    instance, labels = np.empty((400, 2), np.float32), np.empty(400, np.int32)
+    instance, labels = np.empty((600, 2), np.float32), np.empty(600, np.int32)
     var = 1.0
 
     instance[0:100] = np.random.randn(100, 2) * var + np.array([1, 1])
     instance[100:200] = np.random.randn(100, 2) * var + np.array([1, -1])
     instance[200:300] = np.random.randn(100, 2) * var + np.array([-1, 1])
     instance[300:400] = np.random.randn(100, 2) * var + np.array([-1, -1])
+    instance[400:500] = np.random.randn(100, 2) * var + np.array([2, -1])
+    instance[500:600] = np.random.randn(100, 2) * var + np.array([1, -2])
 
     labels[0:100] = np.zeros(100, np.int32)
     labels[100:200] = np.zeros(100, np.int32) + 1
     labels[200:300] = np.zeros(100, np.int32) + 2
     labels[300:400] = np.zeros(100, np.int32) + 3
+    labels[400:500] = np.zeros(100, np.int32) + 4
+    labels[500:600] = np.zeros(100, np.int32) + 5
 
     return Dataset(instance, labels)
 
@@ -156,15 +160,15 @@ def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=
 
 def main():
     parser = argparse.ArgumentParser(description='Chainer example: MNIST')
-    parser.add_argument('--batchsize', '-b', type=int, default=256,
+    parser.add_argument('--batchsize', '-b', type=int, default=128,
                         help='Number of images in each mini-batch')
-    parser.add_argument('--data_type', '-d', type=str, default='cifar10')
-    parser.add_argument('--model_type', '-m', type=str, default='Resnet50')
+    parser.add_argument('--data_type', '-d', type=str, default='toy')
+    parser.add_argument('--model_type', '-m', type=str, default='DNN')
     parser.add_argument('--gpu', '-g', type=int, default=-1)
-    parser.add_argument('--cluster', '-c', type=int, default=2)
-    parser.add_argument('--weight_decay', '-w', type=float, default=0.0005)
-    parser.add_argument('--epoch', '-e', type=int, default=10)
-    parser.add_argument('--mu', '-mu', type=float, default=6.0)
+    parser.add_argument('--cluster', '-c', type=int, default=3)
+    parser.add_argument('--weight_decay', '-w', type=float, default=0.0000)
+    parser.add_argument('--epoch', '-e', type=int, default=100)
+    parser.add_argument('--mu', '-mu', type=float, default=10.0)
     args = parser.parse_args()
 
     gpu = args.gpu
@@ -174,8 +178,11 @@ def main():
 
     ndim = 1
     if data_type == 'toy':
-        model = network.LinearModel(2, 2)
-        num_classes = 2
+        if model_type == 'DNN':
+            model = network.MLP(100, num_cluster)
+        else:
+            model = network.LinearModel(2, num_cluster)
+        num_classes = 6
     elif data_type == 'mnist':
         num_classes = 10
         if model_type == 'linear':
