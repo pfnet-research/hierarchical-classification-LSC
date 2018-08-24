@@ -39,4 +39,4 @@ def assign(cluster_label, num_classes, num_clusters):
         res.append((cluster, count_classes[cluster]))
         count_classes[cluster] += 1
 
-    return res
+    return res, count_classes

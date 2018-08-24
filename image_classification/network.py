@@ -3,6 +3,45 @@ import chainer.links as L
 import chainer.functions as F
 
 
+class LinearModel(chainer.Chain):
+    def __init__(self, n_in, n_out):
+        super(LinearModel, self).__init__()
+        with self.init_scope():
+            self.w = L.Linear(n_in, n_out)
+
+    def conv(self, x, unchain=False):
+        return x
+
+    def cluster(self, h):
+        return self.w(h)
+
+    def __call__(self, x, unchain=False):
+        return self.w(x)
+
+
+class MLP(chainer.Chain):
+    def __init__(self, n_units, n_out):
+        super(MLP, self).__init__()
+        with self.init_scope():
+            # the size of the inputs to each layer will be inferred
+            self.l1 = L.Linear(None, n_units)  # n_in -> n_units
+            self.l2 = L.Linear(None, n_units)  # n_units -> n_units
+            self.l3 = L.Linear(None, n_out)  # n_units -> n_out
+
+    def conv(self, x, unchain=False):
+        h1 = F.relu(self.l1(x))
+        h2 = F.relu(self.l2(h1))
+        return h2
+
+    def cluster(self, h):
+        return self.l3(h)
+
+    def __call__(self, x, unchain=False):
+        h1 = F.relu(self.l1(x))
+        h2 = F.relu(self.l2(h1))
+        return self.l3(h2)
+
+
 class BottleNeck(chainer.Chain):
 
     def __init__(self, n_in, n_mid, n_out, stride=1, use_conv=False):

@@ -13,9 +13,15 @@ import network
 from importlib import import_module
 import sys, os
 import numpy as np
+import hierarchy_network as h_net
 
 import cifar
+import mnist
+
 import separate
+import dataset
+import updater
+import accuracy
 
 
 class Dataset(object):
@@ -112,7 +118,7 @@ class Updater(chainer.training.StandardUpdater):
 
 def data_generate():
     instance, labels = np.empty((400, 2), np.float32), np.empty(400, np.int32)
-    var = 1.0
+    var = 0.5
 
     instance[0:100] = np.random.randn(100, 2) * var + np.array([1, 1])
     instance[100:200] = np.random.randn(100, 2) * var + np.array([1, -1])
@@ -124,27 +130,29 @@ def data_generate():
     labels[200:300] = np.zeros(100, np.int32) + 2
     labels[300:400] = np.zeros(100, np.int32) + 3
 
-    return Dataset(instance, labels)
+    return instance, labels
 
 
 def load_data(data_type='toy', ndim=1):
-    mean = np.array([125.3069, 122.95015, 113.866])
-    std = np.array([62.99325, 62.088604, 66.70501])
     if data_type == 'toy':
-        return data_generate(), data_generate()
+        train_instances, train_labels = data_generate()
+        test_instances, test_labels = data_generate()
+        return (train_instances, train_labels), (test_instances, test_labels)
     elif data_type == 'mnist':
         (train_images, train_labels), (test_images, test_labels) = mnist.get_mnist(ndim=ndim)
-        return Dataset(train_images, train_labels), Dataset(test_images, test_labels)
+        return (train_images, train_labels), (test_images, test_labels)
     elif data_type == 'cifar10':
         (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar10()
-        return Dataset(train_images, train_labels), Dataset(test_images, test_labels)
+        return (train_images, train_labels), (test_images, test_labels)
     elif data_type == 'cifar100':
+        mean = np.array([125.3069, 122.95015, 113.866])
+        std = np.array([62.99325, 62.088604, 66.70501])
         (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar100(scale=255.0)
         train_images -= mean[:, None, None]
         test_images -= mean[:, None, None]
         train_images /= std[:, None, None]
         test_images /= std[:, None, None]
-        return Dataset(train_images, train_labels), Dataset(test_images, test_labels)
+        return (train_images, train_labels), (test_images, test_labels)
     else:
         raise ValueError
 
@@ -192,17 +200,22 @@ def load_npz(file, obj, path='', strict=True, not_load_list=None):
 
 def main():
     parser = argparse.ArgumentParser(description='Chainer example: MNIST')
-    parser.add_argument('--batchsize', '-b', type=int, default=256,
+    parser.add_argument('--batchsize', '-b', type=int, default=128,
                         help='Number of images in each mini-batch')
-    parser.add_argument('--data_type', '-d', type=str, default='cifar100')
-    parser.add_argument('--model_type', '-m', type=str, default='Resnet50')
+    parser.add_argument('--data_type', '-d', type=str, default='mnist')
+    parser.add_argument('--model_type', '-m', type=str, default='DNN')
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--cluster', '-c', type=int, default=2)
-    parser.add_argument('--weight_decay', '-w', type=float, default=0.0005)
-    parser.add_argument('--epoch', '-e', type=int, default=10)
-    parser.add_argument('--mu', '-mu', type=float, default=20.0)
+    parser.add_argument('--weight_decay', '-w', type=float, default=0.0000)
+    parser.add_argument('--epoch', '-e', type=int, default=3)
+    parser.add_argument('--epoch2', '-e2', type=int, default=10)
+    parser.add_argument('--mu', '-mu', type=float, default=30.0)
     parser.add_argument('--out', '-o', type=str, default='results')
+    parser.add_argument('--seed', '-s', type=int, default=0)
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    np.random.seed(args.seed)
 
     model_file = 'models/ResNet.py'
     model_name = 'ResNet50'
@@ -211,40 +224,40 @@ def main():
     gpu = args.gpu
     data_type = args.data_type
     model_type = args.model_type
-    num_cluster = args.cluster
+    num_clusters = args.cluster
 
     ndim = 1
     if data_type == 'toy':
         model = network.LinearModel(2, 2)
-        num_classes = 2
+        num_classes = 4
     elif data_type == 'mnist':
         num_classes = 10
         if model_type == 'linear':
-            model = network.LinearModel(784, num_cluster)
+            model = network.LinearModel(784, num_clusters)
         elif model_type == 'DNN':
-            model = network.MLP(1000, num_cluster)
+            model = network.MLP(1000, num_clusters)
         elif model_type == 'CNN':
             ndim = 3
-            model = network.CNN(num_cluster)
+            model = network.CNN(num_clusters)
         else:
             raise ValueError
     elif data_type == 'cifar100':
         num_classes = 100
         if model_type == 'Resnet50':
-            model = network.ResNet50(args.cluster)
+            model = network.ResNet50(num_clusters)
             load_npz(model_path, model, not_load_list=['fc7'])
         else:
             raise ValueError
     else:
         num_classes = 10
         if model_type == 'Resnet50':
-            model = network.ResNet50(num_cluster)
+            model = network.ResNet50(num_clusters)
         elif model_type == 'Resnet101':
-            model = network.ResNet101(num_cluster)
+            model = network.ResNet101(num_clusters)
         elif model_type == 'VGG':
-            model = network.VGG(num_cluster)
+            model = network.VGG(num_clusters)
         elif model_type == 'CNN':
-            model = network.CNN(num_cluster)
+            model = network.CNN(num_clusters)
         else:
             raise ValueError
 
@@ -259,35 +272,36 @@ def main():
         optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
 
     train, test = load_data(data_type, ndim)
+    train = Dataset(*train)
+    test = Dataset(*test)
 
     train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
 
-    updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
+    train_updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
 
-    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
+    trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
 
+    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
          'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
-    trainer.extend(extensions.snapshot(), trigger=(1, 'epoch'))
-
-    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
+    trainer.extend(extensions.snapshot(), trigger=(5, 'epoch'))
 
     trainer.run()
+    """
+    end clustering
+    """
 
-    res, ss = check_cluster(model, train, num_classes, num_cluster, device=gpu)
-    res_sum = tuple(0 for _ in range(num_cluster))
+    res, ss = check_cluster(model, train, num_classes, num_clusters, device=gpu)
+    res_sum = tuple(0 for _ in range(num_clusters))
     for i in range(num_classes):
-        res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_cluster))
-
-    with open('train.res', 'w') as f:
-        print(res, res_sum, ss, file=f)
+        res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
     print(res, res_sum, ss)
 
-    res, ss = check_cluster(model, test, num_classes, num_cluster, device=gpu)
-    res_sum = tuple(0 for _ in range(num_cluster))
+    res, ss = check_cluster(model, test, num_classes, num_clusters, device=gpu)
+    res_sum = tuple(0 for _ in range(num_clusters))
     for i in range(num_classes):
-        res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_cluster))
+        res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
 
     with open('test.res', 'w') as f:
         print(res, res_sum, ss, file=f)
@@ -295,6 +309,43 @@ def main():
 
     cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu)
     print(cluster_label)
+
+    assignment, count_classes = separate.assign(cluster_label, num_classes, num_clusters)
+    print(assignment)
+    """
+    start classification
+    """
+    model = h_net.HierarchicalNetwork(model, num_clusters, count_classes)
+    optimizer = chainer.optimizers.Adam()
+    optimizer.setup(model)
+
+    if gpu >= 0:
+        # Make a specified GPU current
+        chainer.backends.cuda.get_device_from_id(gpu).use()
+        model.to_gpu()  # Copy the model to the GPU
+    train, test = load_data(data_type, ndim)
+    train = dataset.Dataset(*train, assignment)
+    test = dataset.Dataset(*test, assignment)
+
+    train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
+    test_iter = chainer.iterators.SerialIterator(test, batch_size=args.batchsize, repeat=False, shuffle=False)
+
+    train_updater = updater.Updater(model, train, train_iter, optimizer, num_clusters, device=gpu)
+
+    trainer = training.Trainer(train_updater, (args.epoch2, 'epoch'), args.out)
+
+    acc = accuracy.Accuracy(model, assignment)
+    trainer.extend(extensions.Evaluator(test_iter, acc, device=gpu))
+
+    trainer.extend(
+        extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
+        trigger=(100, 'epoch'))
+    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
+    trainer.extend(extensions.PrintReport(
+        ['epoch', 'iteration', 'main/loss', 'validation/main/accuracy', 'elapsed_time']))
+
+    trainer.run()
+    print(assignment)
 
 
 if __name__ == '__main__':
