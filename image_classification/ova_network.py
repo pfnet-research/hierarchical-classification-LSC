@@ -9,13 +9,7 @@ class LinearModel(chainer.Chain):
         with self.init_scope():
             self.w = L.Linear(n_in, n_out)
 
-    def conv(self, x, unchain=False):
-        return x
-
-    def cluster(self, h):
-        return self.w(h)
-
-    def __call__(self, x, unchain=False):
+    def __call__(self, x):
         return self.w(x)
 
 
@@ -28,15 +22,7 @@ class MLP(chainer.Chain):
             self.l2 = L.Linear(None, n_units)  # n_units -> n_units
             self.l3 = L.Linear(None, n_out)  # n_units -> n_out
 
-    def conv(self, x, unchain=False):
-        h1 = F.relu(self.l1(x))
-        h2 = F.relu(self.l2(h1))
-        return h2
-
-    def cluster(self, h):
-        return self.l3(h)
-
-    def __call__(self, x, unchain=False):
+    def __call__(self, x):
         h1 = F.relu(self.l1(x))
         h2 = F.relu(self.l2(h1))
         return self.l3(h2)
@@ -51,16 +37,7 @@ class CNN(chainer.Chain):
             self.fc1 = L.Linear(None, 500)
             self.fc2 = L.Linear(500, num_cluster)
 
-    def conv(self, x, unchain=False):
-        h = F.max_pooling_2d(F.relu(self.cn1(x)), 2)
-        h = F.max_pooling_2d(F.relu(self.cn2(h)), 2)
-        h = F.relu(self.fc1(h))
-        return h
-
-    def cluster(self, h):
-        return self.fc2(h)
-
-    def __call__(self, x, unchain=False):
+    def __call__(self, x):
         h = F.max_pooling_2d(F.relu(self.cn1(x)), 2)
         h = F.max_pooling_2d(F.relu(self.cn2(h)), 2)
         h = F.relu(self.fc1(h))
@@ -120,30 +97,13 @@ class ResNet(chainer.Chain):
             self.res6 = Block(1024, 512, 2048, n_blocks[3], 2)
             self.fc7 = L.Linear(None, n_class)
 
-    def __call__(self, x, unchain=False):
+    def __call__(self, x):
         h = F.relu(self.bn2(self.conv1(x)))
         h = self.res3(h)
         h = self.res4(h)
         h = self.res5(h)
-        if unchain:
-            h.unchain_backward()
         h = self.res6(h)
         h = F.average_pooling_2d(h, h.shape[2:])
-        h = self.fc7(h)
-        return h
-
-    def conv(self, x, unchain=False):
-        h = F.relu(self.bn2(self.conv1(x)))
-        h = self.res3(h)
-        h = self.res4(h)
-        if unchain:
-            h.unchain_backward()
-        h = self.res5(h)
-        h = self.res6(h)
-        h = F.average_pooling_2d(h, h.shape[2:])
-        return h
-
-    def cluster(self, h):
         h = self.fc7(h)
         return h
 
@@ -203,83 +163,27 @@ class VGG(chainer.Chain):
 
             self.fc4 = L.Linear(None, 1024)
             self.fc5 = L.Linear(1024, 1024)
-            self.fc6 = L.Linear(None, n_class)
+            self.fc6 = L.Linear(1024, n_class)
 
-    def __call__(self, x, unchain=False):
-        if unchain:
-            with chainer.using_config('train', False):
-                h = F.relu(self.bn1_1(self.conv1_1(x)))
-                h = F.relu(self.bn1_2(self.conv1_2(h)))
-                h = F.max_pooling_2d(h, 2, 2)
-
-                h = F.relu(self.bn2_1(self.conv2_1(h)))
-                h = F.relu(self.bn2_2(self.conv2_2(h)))
-                h = F.max_pooling_2d(h, 2, 2)
-
-                h = F.relu(self.bn3_1(self.conv3_1(h)))
-                h = F.relu(self.bn3_2(self.conv3_2(h)))
-                h = F.relu(self.bn3_3(self.conv3_3(h)))
-                h = F.relu(self.bn3_4(self.conv3_4(h)))
-                h = F.max_pooling_2d(h, 2, 2)
-        else:
-            h = F.relu(self.bn1_1(self.conv1_1(x)))
-            h = F.relu(self.bn1_2(self.conv1_2(h)))
-            h = F.max_pooling_2d(h, 2, 2)
-            h = F.dropout(h, ratio=0.25)
-
-            h = F.relu(self.bn2_1(self.conv2_1(h)))
-            h = F.relu(self.bn2_2(self.conv2_2(h)))
-            h = F.max_pooling_2d(h, 2, 2)
-            h = F.dropout(h, ratio=0.25)
-
-            h = F.relu(self.bn3_1(self.conv3_1(h)))
-            h = F.relu(self.bn3_2(self.conv3_2(h)))
-            h = F.relu(self.bn3_3(self.conv3_3(h)))
-            h = F.relu(self.bn3_4(self.conv3_4(h)))
-            h = F.max_pooling_2d(h, 2, 2)
-            h = F.dropout(h, ratio=0.25)
-
-        h = F.relu(self.fc4(h))
-        if unchain:
-            h.unchain_backward()
-        h = F.relu(self.fc5(h))
-        h = self.fc6(h)
-        return h
-
-    def conv(self, x, unchain=False):
-        h = F.relu(self.bn1_1(self.conv1_1(x)))
-        h = F.relu(self.bn1_2(self.conv1_2(h)))
+    def __call__(self, x):
+        h = F.relu(self.conv1_1(x))
+        h = F.relu(self.conv1_2(h))
         h = F.max_pooling_2d(h, 2, 2)
         h = F.dropout(h, ratio=0.25)
 
-        h = F.relu(self.bn2_1(self.conv2_1(h)))
-        h = F.relu(self.bn2_2(self.conv2_2(h)))
+        h = F.relu(self.conv2_1(h))
+        h = F.relu(self.conv2_2(h))
         h = F.max_pooling_2d(h, 2, 2)
         h = F.dropout(h, ratio=0.25)
 
-        h = F.relu(self.bn3_1(self.conv3_1(h)))
-        h = F.relu(self.bn3_2(self.conv3_2(h)))
-        h = F.relu(self.bn3_3(self.conv3_3(h)))
-        h = F.relu(self.bn3_4(self.conv3_4(h)))
+        h = F.relu(self.conv3_1(h))
+        h = F.relu(self.conv3_2(h))
+        h = F.relu(self.conv3_3(h))
+        h = F.relu(self.conv3_4(h))
         h = F.max_pooling_2d(h, 2, 2)
         h = F.dropout(h, ratio=0.25)
 
         h = F.dropout(F.relu(self.fc4(h)), ratio=0.5)
         h = F.dropout(F.relu(self.fc5(h)), ratio=0.5)
-
-        return h
-
-    def cluster(self, h):
         h = self.fc6(h)
         return h
-
-    def serialize(self, serializer, not_load_list=None):
-        super(chainer.Chain, self).serialize(serializer)
-        if not_load_list is None:
-            not_load_list = []
-
-        d = self.__dict__
-        for name in self._children:
-            if name in not_load_list:
-                continue
-            d[name].serialize(serializer[name])

@@ -4,6 +4,7 @@ import chainer.links as L
 import chainer.functions as F
 from chainer import training
 from chainer.training import extensions
+from functools import partial
 from chainer.backends import cuda
 import random
 import argparse
@@ -203,30 +204,42 @@ def main():
     parser.add_argument('--batchsize', '-b', type=int, default=128,
                         help='Number of images in each mini-batch')
     parser.add_argument('--data_type', '-d', type=str, default='mnist')
-    parser.add_argument('--model_type', '-m', type=str, default='DNN')
+    parser.add_argument('--model_type', '-m', type=str, default='linear')
+    parser.add_argument('--model_path', '-mp', type=str,
+                        default='./models/ResNet50_model_500.npz')
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--cluster', '-c', type=int, default=2)
-    parser.add_argument('--weight_decay', '-w', type=float, default=0.0000)
+    parser.add_argument('--weight_decay', '-w', type=float, default=0.0005)
     parser.add_argument('--epoch', '-e', type=int, default=3)
     parser.add_argument('--epoch2', '-e2', type=int, default=10)
     parser.add_argument('--mu', '-mu', type=float, default=30.0)
     parser.add_argument('--out', '-o', type=str, default='results')
     parser.add_argument('--seed', '-s', type=int, default=0)
+    parser.add_argument('--resume', '-r', default='',
+                        help='resume the training from snapshot')
+    parser.add_argument('--resume2', '-r2', default='',
+                        help='resume the training from snapshot')
+    parser.add_argument('--optimizer', '-op', type=str, default='Adam')
+    parser.add_argument('--initial_lr', type=float, default=0.05)
+    parser.add_argument('--lr_decay_rate', type=float, default=0.5)
+    parser.add_argument('--lr_decay_epoch', type=float, default=25)
     args = parser.parse_args()
 
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    model_file = 'models/ResNet.py'
-    model_name = 'ResNet50'
-    model_path = "/home/user/.chainer/pretrained/cifar10/model_500.npz"
-
     gpu = args.gpu
     data_type = args.data_type
     model_type = args.model_type
     num_clusters = args.cluster
+    initial_lr = args.initial_lr
+    lr_decay_rate = args.lr_decay_rate
+    lr_decay_epoch = args.lr_decay_epoch
+    opt = args.optimizer
+    model_path = args.model_path
 
     ndim = 1
+    n_in = None
     if data_type == 'toy':
         model = network.LinearModel(2, 2)
         num_classes = 4
@@ -245,7 +258,12 @@ def main():
         num_classes = 100
         if model_type == 'Resnet50':
             model = network.ResNet50(num_clusters)
+            n_in = 2048
             load_npz(model_path, model, not_load_list=['fc7'])
+        elif model_type == 'VGG':
+            model = network.VGG(num_clusters)
+            n_in = 1024
+            load_npz(model_path, model, not_load_list=['fc6'])
         else:
             raise ValueError
     else:
@@ -268,8 +286,6 @@ def main():
 
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
-    if args.weight_decay > 0:
-        optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
 
     train, test = load_data(data_type, ndim)
     train = Dataset(*train)
@@ -286,6 +302,9 @@ def main():
         ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
          'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
     trainer.extend(extensions.snapshot(), trigger=(5, 'epoch'))
+
+    if args.resume:
+        chainer.serializers.load_npz(args.resume, trainer)
 
     trainer.run()
     """
@@ -315,37 +334,54 @@ def main():
     """
     start classification
     """
-    model = h_net.HierarchicalNetwork(model, num_clusters, count_classes)
-    optimizer = chainer.optimizers.Adam()
-    optimizer.setup(model)
+    model = h_net.HierarchicalNetwork(model, num_clusters, count_classes, n_in=n_in)
+    if opt == 'Adam':
+        optimizer2 = chainer.optimizers.Adam()
+    else:
+        optimizer2 = chainer.optimizers.MomentumSGD(lr=initial_lr)
+    optimizer2.setup(model)
+    if args.weight_decay > 0:
+        optimizer2.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
 
     if gpu >= 0:
         # Make a specified GPU current
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
     train, test = load_data(data_type, ndim)
-    train = dataset.Dataset(*train, assignment)
-    test = dataset.Dataset(*test, assignment)
+
+    train_transform = partial(dataset.transform, mean=0.0, std=1.0, train=True)
+    test_transform = partial(dataset.transform, mean=0.0, std=1.0, train=False)
+    train = dataset.Dataset(*train, assignment, train_transform)
+    test = dataset.Dataset(*test, assignment, test_transform)
 
     train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
-    test_iter = chainer.iterators.SerialIterator(test, batch_size=args.batchsize, repeat=False, shuffle=False)
+    test_iter = chainer.iterators.SerialIterator(test, batch_size=args.batchsize, repeat=False)
 
-    train_updater = updater.Updater(model, train, train_iter, optimizer, num_clusters, device=gpu)
+    train_updater = updater.Updater(model, train, train_iter, optimizer2, num_clusters, device=gpu)
 
     trainer = training.Trainer(train_updater, (args.epoch2, 'epoch'), args.out)
 
-    acc = accuracy.Accuracy(model, assignment)
+    acc = accuracy.Accuracy(model, assignment, num_clusters)
     trainer.extend(extensions.Evaluator(test_iter, acc, device=gpu))
 
     trainer.extend(
         extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
-        trigger=(100, 'epoch'))
+        trigger=(20, 'epoch'))
     trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
     trainer.extend(extensions.PrintReport(
-        ['epoch', 'iteration', 'main/loss', 'validation/main/accuracy', 'elapsed_time']))
+        ['epoch', 'main/loss', 'main/loss_cluster', 'main/loss_class',
+         'validation/main/accuracy', 'validation/main/cluster_accuracy',
+         'validation/main/loss', 'validation/main/loss_cluster',
+         'validation/main/loss_class']))
+
+    if opt != 'Adam':
+        trainer.extend(extensions.ExponentialShift(
+            'lr', lr_decay_rate), trigger=(lr_decay_epoch, 'epoch'))
+
+    if args.resume2:
+        chainer.serializers.load_npz(args.resume2, trainer)
 
     trainer.run()
-    print(assignment)
 
 
 if __name__ == '__main__':

@@ -44,15 +44,19 @@ class Updater(chainer.training.StandardUpdater):
         instances, clusters, classes = xp.take(instances, index, axis=0), \
                                        xp.take(clusters, index), xp.take(classes, index)
 
-        y = self.model.train(instances, clusters, classes, partition)
+        y, cluster_y, class_y = self.model.train(instances, clusters, classes, partition)
         loss = self.mle_loss(y) / batchsize
+        loss_cluster = self.mle_loss(cluster_y) / batchsize
+        loss_class = self.mle_loss(class_y) / batchsize
 
         loss.backward()
 
         optimizer.update()
 
         chainer.reporter.report({'main/loss': loss})
+        chainer.reporter.report({'main/loss_cluster': loss_cluster})
+        chainer.reporter.report({'main/loss_class': loss_class})
 
     @staticmethod
     def mle_loss(p):
-        return -F.sum(F.log(p))
+        return -F.sum(F.log(p + 1e-8))

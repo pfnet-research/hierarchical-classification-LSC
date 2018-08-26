@@ -80,9 +80,9 @@ def get_cifar100(withlabel=True, ndim=3, scale=1.):
 
 
 def _get_cifar(name, withlabel, ndim, scale):
-    # root = download.get_dataset_directory(os.path.join('pfnet', 'chainer',
-    #                                                    'cifar'))
-    root = '/home/user/.chainer/dataset/pfnet/chainer/cifar'
+    root = download.get_dataset_directory(os.path.join('pfnet', 'chainer',
+                                                       'cifar'))
+    print(root)
     if name == 'cifar-100':
         npz_path = os.path.join(root+'100', '{}.npz'.format(name))
     else:

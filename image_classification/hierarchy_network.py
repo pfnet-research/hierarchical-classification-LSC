@@ -6,13 +6,13 @@ import numpy
 
 
 class HierarchicalNetwork(chainer.ChainList):
-    def __init__(self, model, num_clusters, class_list):
+    def __init__(self, model, num_clusters, class_list, n_in=None):
         super(HierarchicalNetwork, self).__init__()
 
         self.num_clusters = num_clusters
         self.model = model
         for i in range(num_clusters):
-            fc = L.Linear(None, class_list[i])
+            fc = L.Linear(n_in, class_list[i])
             self.add_link(fc)
         self.add_link(model)
 
@@ -27,22 +27,21 @@ class HierarchicalNetwork(chainer.ChainList):
         """
         h = self.model.conv(x)
         cluster_output = F.softmax(self.model.cluster(h))
+        cluster_output = F.select_item(cluster_output, cluster_array)
+
         class_output = None
 
-        """
-        for i in range(2):
-            print(self[i].W.data, self[i].b.data)
-        print("")
-        """
-
         for cluster in range(self.num_clusters):
+            if partition[cluster] == partition[cluster+1]:
+                continue
+            output = F.softmax(self[cluster](h[partition[cluster]:partition[cluster + 1]]))
+            output = F.select_item(output, class_array[partition[cluster]:partition[cluster + 1]])
             if class_output is None:
-                class_output = F.softmax(self[cluster](h[partition[cluster]:partition[cluster+1]]))
+                class_output = output
             else:
-                output = F.softmax(self[cluster](h[partition[cluster]:partition[cluster+1]]))
                 class_output = F.concat((class_output, output), axis=0)
 
-        return F.select_item(class_output, class_array) * F.select_item(class_output, class_array)
+        return cluster_output * class_output, cluster_output, class_output
 
     def inference(self, x):
         """
@@ -53,9 +52,13 @@ class HierarchicalNetwork(chainer.ChainList):
 
         h = self.model.conv(x)
         cluster_array = xp.argmax(self.model.cluster(h).data, axis=1)
+        if xp != numpy:
+            cluster_array_cpu = cuda.to_cpu(cluster_array)
+        else:
+            cluster_array_cpu = cluster_array
 
         class_array = None
-        for i, index in enumerate(cluster_array):
+        for i, index in enumerate(cluster_array_cpu):
             class_index = xp.argmax(self[index](h[i:i+1]).data, axis=1)
 
             if class_array is None:
