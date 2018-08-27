@@ -9,6 +9,11 @@ import random
 import argparse
 import chainer
 from chainer import serializers
+from chainer.datasets import TransformDataset
+from chainercv import transforms
+from functools import partial
+import cv2 as cv
+
 import ova_network
 from importlib import import_module
 import sys, os
@@ -22,6 +27,61 @@ import separate
 import dataset
 import updater
 import accuracy
+
+
+USE_OPENCV = True
+
+
+def cv_rotate(img, angle):
+    if USE_OPENCV:
+        img = img.transpose(1, 2, 0) / 255.
+        center = (img.shape[0] // 2, img.shape[1] // 2)
+        r = cv.getRotationMatrix2D(center, angle, 1.0)
+        img = cv.warpAffine(img, r, img.shape[:2])
+        img = img.transpose(2, 0, 1) * 255.
+        img = img.astype(np.float32)
+    else:
+        raise NotImplemented
+        # scikit-image's rotate function is almost 7x slower than OpenCV
+        img = img.transpose(1, 2, 0) / 255.
+        img = skimage_transform.rotate(img, angle, mode='edge')
+        img = img.transpose(2, 0, 1) * 255.
+        img = img.astype(np.float32)
+    return img
+
+
+def transform(
+        inputs, mean, std, random_angle=15., pca_sigma=25.5, expand_ratio=1.2,
+        crop_size=(28, 28), train=True):
+    img, label = inputs
+    img = img.copy()
+
+    # Random rotate
+    if random_angle != 0:
+        angle = np.random.uniform(-random_angle, random_angle)
+        img = cv_rotate(img, angle)
+
+    # Color augmentation
+    if train and pca_sigma != 0:
+        img = transforms.pca_lighting(img, pca_sigma)
+
+    """
+    # Standardization
+    img -= mean[:, None, None]
+    img /= std[:, None, None]
+    """
+
+    if train:
+        # Random flip
+        img = transforms.random_flip(img, x_random=True)
+        # Random expand
+        if expand_ratio > 1:
+            img = transforms.random_expand(img, max_ratio=expand_ratio)
+        # Random crop
+        if tuple(crop_size) != (32, 32):
+            img = transforms.random_crop(img, tuple(crop_size))
+
+    return img, label
 
 
 def data_generate():
@@ -76,7 +136,6 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-
     gpu = args.gpu
     data_type = args.data_type
     model_type = args.model_type
@@ -117,8 +176,8 @@ def main():
         test_images -= mean[:, None, None]
         train_images /= std[:, None, None]
         test_images /= std[:, None, None]
-        train = chainer.datasets.TupleDataset(train_images, train_labels)
-        test = chainer.datasets.TupleDataset(test_images, test_labels)
+        train = chainer.datasets.tuple_dataset.TupleDataset(train_images, train_labels)
+        test = chainer.datasets.tuple_dataset.TupleDataset(test_images, test_labels)
 
         if model_type == 'Resnet50':
             model = ova_network.ResNet50(num_classes)
@@ -138,6 +197,13 @@ def main():
             model = ova_network.CNN(num_classes)
         else:
             raise ValueError
+
+    train_transform = partial(
+        transform, mean=0.0, std=1.0, train=True)
+    test_transform = partial(transform, mean=0.0, std=1.0, train=False)
+
+    train = TransformDataset(train, train_transform)
+    test = TransformDataset(test, test_transform)
 
     if gpu >= 0:
         # Make a specified GPU current
