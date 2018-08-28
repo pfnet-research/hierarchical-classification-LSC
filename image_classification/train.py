@@ -300,7 +300,7 @@ def main():
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
 
-    optimizer = chainer.optimizers.Adam()
+    optimizer = chainer.optimizers.Adam(alpha=0.0001)
     optimizer.setup(model)
 
     train, test = load_data(data_type, ndim)
@@ -341,16 +341,12 @@ def main():
         for i in range(num_classes):
             res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
 
-        with open('test.res', 'w') as f:
-            print(res, res_sum, ss, file=f)
-        print(res, res_sum, ss)
-
         cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu)
         print(cluster_label)
 
         assignment, count_classes = separate.assign(cluster_label, num_classes, num_clusters)
-        print(assignment)
 
+    print(assignment)
     """
     start classification
     """
