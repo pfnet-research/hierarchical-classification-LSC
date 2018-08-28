@@ -188,6 +188,17 @@ def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=
     return cluster, ss
 
 
+def random_assignment(num_clusters, num_classes):
+    assignment, count_classes = [], []
+    for i in range(num_clusters):
+        n_c = num_classes // (num_clusters - i)
+        count_classes.append(n_c)
+        num_classes -= n_c
+        for j in range(n_c):
+            assignment.append((i, j))
+    return random.sample(assignment, len(assignment)), count_classes
+
+
 class MyNpzDeserializer(serializers.NpzDeserializer):
     def load(self, obj, not_load_list=None):
         obj.serialize(self, not_load_list)
@@ -223,6 +234,10 @@ def main():
     parser.add_argument('--initial_lr', type=float, default=0.05)
     parser.add_argument('--lr_decay_rate', type=float, default=0.5)
     parser.add_argument('--lr_decay_epoch', type=float, default=25)
+    parser.add_argument('--random', action='store_true', default=False,
+                        help='Use random assignment or not')
+    parser.add_argument('--valid', '--v', action='store_true',
+                        help='Use random assignment or not')
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -237,6 +252,7 @@ def main():
     lr_decay_epoch = args.lr_decay_epoch
     opt = args.optimizer
     model_path = args.model_path
+    rand_assign = args.random
 
     ndim = 1
     n_in = None
@@ -306,31 +322,35 @@ def main():
     if args.resume:
         chainer.serializers.load_npz(args.resume, trainer)
 
-    trainer.run()
-    """
-    end clustering
-    """
+    if rand_assign:
+        assignment, count_classes = random_assignment(num_clusters, num_classes)
+    else:
+        trainer.run()
+        """
+        end clustering
+        """
 
-    res, ss = check_cluster(model, train, num_classes, num_clusters, device=gpu)
-    res_sum = tuple(0 for _ in range(num_clusters))
-    for i in range(num_classes):
-        res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
-    print(res, res_sum, ss)
+        res, ss = check_cluster(model, train, num_classes, num_clusters, device=gpu)
+        res_sum = tuple(0 for _ in range(num_clusters))
+        for i in range(num_classes):
+            res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
+        print(res, res_sum, ss)
 
-    res, ss = check_cluster(model, test, num_classes, num_clusters, device=gpu)
-    res_sum = tuple(0 for _ in range(num_clusters))
-    for i in range(num_classes):
-        res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
+        res, ss = check_cluster(model, test, num_classes, num_clusters, device=gpu)
+        res_sum = tuple(0 for _ in range(num_clusters))
+        for i in range(num_classes):
+            res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
 
-    with open('test.res', 'w') as f:
-        print(res, res_sum, ss, file=f)
-    print(res, res_sum, ss)
+        with open('test.res', 'w') as f:
+            print(res, res_sum, ss, file=f)
+        print(res, res_sum, ss)
 
-    cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu)
-    print(cluster_label)
+        cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu)
+        print(cluster_label)
 
-    assignment, count_classes = separate.assign(cluster_label, num_classes, num_clusters)
-    print(assignment)
+        assignment, count_classes = separate.assign(cluster_label, num_classes, num_clusters)
+        print(assignment)
+
     """
     start classification
     """
