@@ -14,10 +14,13 @@ import network
 from importlib import import_module
 import sys, os
 import numpy as np
+from scipy.sparse import csr_matrix
+
 import hierarchy_network as h_net
 
 import cifar
 import mnist
+import doc_preprocess
 
 import separate
 import dataset
@@ -26,9 +29,7 @@ import accuracy
 
 
 class Dataset(object):
-    def __init__(self, instances, labels):
-        if len(instances) != len(labels):
-            raise ValueError('the lengths of instances and labels are different')
+    def __init__(self, instances, labels, sparse=False):
         instances, labels = instances[np.argsort(labels)], np.sort(labels)
         label_type = np.unique(labels)
         partition = [np.searchsorted(labels, k, side='left') for k in label_type]
@@ -36,12 +37,17 @@ class Dataset(object):
 
         self._instances = instances
         self._labels = labels
-        self._length = len(instances)
+        self._length = len(labels)
         self._partition = partition
+        self.sparse = sparse
 
     def __getitem__(self, index):
         if isinstance(index, slice):
             instances = self._instances[index]
+
+            if self.sparse:
+                instances = np.array(csr_matrix.todense(instances))
+
             labels = self._labels[index]
 
             length = len(instances)
@@ -49,11 +55,21 @@ class Dataset(object):
             # バッチ内の各ラベルからランダムに要素を取り出す。
             sampled_instances = [random.choice(self._instances[self._partition[label]:self._partition[label + 1]])
                                  for label in labels]
+            if self.sparse:
+                sampled_instances = [np.array(csr_matrix.todense(sampled_instance)) for sampled_instance in sampled_instances]
+
             return [(instances[i], labels[i], sampled_instances[i]) for i in range(length)]
         else:
             instance = self._instances[index]
+            if self.sparse:
+                instance = np.array(csr_matrix.todense(instance))
+
             label = self._labels[index]
-            sampled_instance = random.choice(self._instances[self._partition[label]:self._partition[label + 1]])
+            sampled_instance = self._instances[random.choice(range(self._partition[label], self._partition[label + 1]))]
+
+            if self.sparse:
+                sampled_instance = np.array(csr_matrix.todense(sampled_instance))
+
             return instance, label, sampled_instance
 
     def __len__(self):
@@ -134,7 +150,7 @@ def data_generate():
     return instance, labels
 
 
-def load_data(data_type='toy', ndim=1):
+def load_data(data_type='toy', ndim=1, f_train='', f_test=''):
     if data_type == 'toy':
         train_instances, train_labels = data_generate()
         test_instances, test_labels = data_generate()
@@ -145,6 +161,10 @@ def load_data(data_type='toy', ndim=1):
     elif data_type == 'cifar10':
         (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar10()
         return (train_images, train_labels), (test_images, test_labels)
+    elif data_type == 'LSHTC1':
+        (train_instances, train_labels) = doc_preprocess.load_data(f_train)
+        (test_instances, test_labels) = doc_preprocess.load_data(f_test)
+        return (train_instances, train_labels), (test_instances, test_labels)
     elif data_type == 'cifar100':
         mean = np.array([125.3069, 122.95015, 113.866])
         std = np.array([62.99325, 62.088604, 66.70501])
@@ -214,17 +234,19 @@ def main():
     parser = argparse.ArgumentParser(description='Chainer example: MNIST')
     parser.add_argument('--batchsize', '-b', type=int, default=128,
                         help='Number of images in each mini-batch')
-    parser.add_argument('--data_type', '-d', type=str, default='mnist')
-    parser.add_argument('--model_type', '-m', type=str, default='linear')
+    parser.add_argument('--data_type', '-d', type=str, default='LSHTC1')
+    parser.add_argument('--model_type', '-m', type=str, default='DocModel')
     parser.add_argument('--model_path', '-mp', type=str,
                         default='./models/ResNet50_model_500.npz')
     parser.add_argument('--gpu', '-g', type=int, default=-1)
-    parser.add_argument('--cluster', '-c', type=int, default=2)
-    parser.add_argument('--weight_decay', '-w', type=float, default=0.0005)
-    parser.add_argument('--epoch', '-e', type=int, default=3)
+    parser.add_argument('--cluster', '-c', type=int, default=100)
+    parser.add_argument('--weight_decay', '-w', type=float, default=0.0000)
+    parser.add_argument('--epoch', '-e', type=int, default=10)
     parser.add_argument('--epoch2', '-e2', type=int, default=10)
     parser.add_argument('--mu', '-mu', type=float, default=30.0)
     parser.add_argument('--out', '-o', type=str, default='results')
+    parser.add_argument('--train_file', '-train_f', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
+    parser.add_argument('--test_file', '-test_f', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.test')
     parser.add_argument('--seed', '-s', type=int, default=0)
     parser.add_argument('--resume', '-r', default='',
                         help='resume the training from snapshot')
@@ -253,6 +275,9 @@ def main():
     opt = args.optimizer
     model_path = args.model_path
     rand_assign = args.random
+    train_file = args.train_file
+    test_file = args.test_file
+    sparse = False
 
     ndim = 1
     n_in = None
@@ -282,6 +307,13 @@ def main():
             load_npz(model_path, model, not_load_list=['fc6'])
         else:
             raise ValueError
+    elif data_type == 'LSHTC1':
+        sparse = True
+        num_classes = 12045
+        if model_type == 'DocModel':
+            model = network.DocModel(n_in=1199855, n_mid=300, n_out=num_clusters)
+        else:
+            raise ValueError
     else:
         num_classes = 10
         if model_type == 'Resnet50':
@@ -300,12 +332,12 @@ def main():
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
 
-    optimizer = chainer.optimizers.Adam(alpha=0.0001)
+    optimizer = chainer.optimizers.Adam(alpha=0.001)
     optimizer.setup(model)
 
-    train, test = load_data(data_type, ndim)
-    train = Dataset(*train)
-    test = Dataset(*test)
+    train, test = load_data(data_type, ndim, train_file, test_file)
+    train = Dataset(*train, sparse)
+    test = Dataset(*test, sparse)
 
     train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
 

@@ -19,6 +19,24 @@ class LinearModel(chainer.Chain):
         return self.w(x)
 
 
+class DocModel(chainer.Chain):
+    def __init__(self, n_in, n_mid, n_out):
+        super(DocModel, self).__init__()
+        with self.init_scope():
+            self.w1 = L.Linear(n_in, n_mid)
+            self.w2 = L.Linear(n_mid, n_out)
+
+    def conv(self, x, unchain=False):
+        return self.w1(x)
+
+    def cluster(self, h):
+        return self.w2(h)
+
+    def __call__(self, x, unchain=False):
+        h = self.w1(x)
+        return self.w2(h)
+
+
 class MLP(chainer.Chain):
     def __init__(self, n_units, n_out):
         super(MLP, self).__init__()
