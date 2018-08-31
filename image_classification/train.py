@@ -410,7 +410,7 @@ def main():
         # Make a specified GPU current
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
-    train, test = load_data(data_type, ndim)
+    train, test = load_data(data_type, ndim, train_file, test_file)
 
     train = dataset.Dataset(*train, assignment, train_transform, sparse=sparse)
     test = dataset.Dataset(*test, assignment, test_transform, sparse=sparse)
