@@ -289,6 +289,8 @@ def main():
 
     ndim = 1
     n_in = None
+    train_transform = None
+    test_transform = None
     if data_type == 'toy':
         model = network.LinearModel(2, 2)
         num_classes = 4
@@ -305,6 +307,8 @@ def main():
             raise ValueError
     elif data_type == 'cifar100':
         num_classes = 100
+        train_transform = partial(dataset.transform, mean=0.0, std=1.0, train=True)
+        test_transform = partial(dataset.transform, mean=0.0, std=1.0, train=False)
         if model_type == 'Resnet50':
             model = network.ResNet50(num_clusters)
             n_in = 2048
@@ -369,18 +373,20 @@ def main():
         """
         end clustering
         """
-
+        """
         res, ss = check_cluster(model, train, num_classes, num_clusters, device=gpu)
         res_sum = tuple(0 for _ in range(num_clusters))
         for i in range(num_classes):
             res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
         print(res, res_sum, ss)
+        """
 
+        """
         res, ss = check_cluster(model, test, num_classes, num_clusters, device=gpu)
         res_sum = tuple(0 for _ in range(num_clusters))
         for i in range(num_classes):
             res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
-
+        """
         cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu, sparse=sparse)
         print(cluster_label)
 
@@ -406,10 +412,8 @@ def main():
         model.to_gpu()  # Copy the model to the GPU
     train, test = load_data(data_type, ndim)
 
-    train_transform = partial(dataset.transform, mean=0.0, std=1.0, train=True)
-    test_transform = partial(dataset.transform, mean=0.0, std=1.0, train=False)
-    train = dataset.Dataset(*train, assignment, train_transform)
-    test = dataset.Dataset(*test, assignment, test_transform)
+    train = dataset.Dataset(*train, assignment, train_transform, sparse=sparse)
+    test = dataset.Dataset(*test, assignment, test_transform, sparse=sparse)
 
     train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
     test_iter = chainer.iterators.SerialIterator(test, batch_size=args.batchsize, repeat=False)

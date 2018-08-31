@@ -13,6 +13,8 @@ from chainer.training import extensions
 from chainercv import transforms
 import cv2 as cv
 
+from scipy.sparse import csr_matrix
+
 USE_OPENCV = True
 
 
@@ -69,14 +71,16 @@ def transform(
 
 
 class Dataset(TupleDataset):
-    def __init__(self, instances, labels, assignment, _transform):
+    def __init__(self, instances, labels, assignment, _transform=None, sparse=False):
         clusters, classes = [assignment[label][0] for label in labels], \
                             [assignment[label][1] for label in labels]
         super(Dataset, self).__init__(instances, clusters, classes)
         self.transform = _transform
+        self.sparse = sparse
 
     def __getitem__(self, index):
         if isinstance(index, slice):
+            raise NotImplementedError
             batches = [dataset[index] for dataset in self._datasets]
             instances = [tuple([self.transform(instance) for instance in batches[0]])]
             clusters = [tuple([cluster for cluster in batches[1]])]
@@ -84,5 +88,8 @@ class Dataset(TupleDataset):
             return [instances, clusters, classes]
         else:
             instance, cluster, _class = super().__getitem__(index)
-            instance = self.transform(instance)
+            if transform is not None:
+                instance = self.transform(instance)
+            if self.sparse:
+                instance = np.array(csr_matrix.todense(instance))
             return instance, cluster, _class

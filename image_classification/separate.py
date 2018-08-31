@@ -12,8 +12,6 @@ def det_cluster(model, train, num_classes, batchsize=128, device=-1, sparse=Fals
 
         while i <= N:
             train_batch = train[i:i+batchsize]
-            if sparse:
-                train_batch = np.array(csr_matrix.todense(train_batch))
             xx = -F.log(F.softmax(model(
                 chainer.dataset.convert.concat_examples(train_batch, device=device)[0]))).data
             if device >= 0:
