@@ -2,16 +2,20 @@ import chainer
 import chainer.functions as F
 from chainer.backends import cuda
 import numpy as np
+from scipy.sparse import csr_matrix
 
 
-def det_cluster(model, train, num_classes, batchsize=128, device=-1):
+def det_cluster(model, train, num_classes, batchsize=128, device=-1, sparse=False):
     with chainer.using_config('train', False):
         i, N = 0, len(train)
         res = None
 
         while i <= N:
+            train_batch = train[i:i+batchsize]
+            if sparse:
+                train_batch = np.array(csr_matrix.todense(train_batch))
             xx = -F.log(F.softmax(model(
-                chainer.dataset.convert.concat_examples(train[i:i + batchsize], device=device)[0]))).data
+                chainer.dataset.convert.concat_examples(train_batch, device=device)[0]))).data
             if device >= 0:
                 xx = cuda.to_cpu(xx)
 

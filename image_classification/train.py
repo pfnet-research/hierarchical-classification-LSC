@@ -53,7 +53,8 @@ class Dataset(object):
             length = len(instances)
 
             # バッチ内の各ラベルからランダムに要素を取り出す。
-            sampled_instances = [random.choice(self._instances[self._partition[label]:self._partition[label + 1]])
+            sampled_instances = [self._instances[random.choice(range(self._partition[label],
+                                                                     self._partition[label + 1]))]
                                  for label in labels]
             if self.sparse:
                 sampled_instances = [np.array(csr_matrix.todense(sampled_instance)) for sampled_instance in sampled_instances]
@@ -178,15 +179,18 @@ def load_data(data_type='toy', ndim=1, f_train='', f_test=''):
         raise ValueError
 
 
-def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=-1):
+def check_cluster(model, train, num_classes, num_cluster, batchsize=128, device=-1, sparse=False):
     with chainer.using_config('train', False):
         i, N = 0, len(train)
         cc = None
         ss = None
 
         while i <= N:
+            train_batch = train[i:i + batchsize]
+            if sparse:
+                train_batch = np.array(csr_matrix.todense(train_batch))
             # concat_examplesは(instances, labels)を返す。
-            xx = F.softmax(model(chainer.dataset.convert.concat_examples(train[i:i+batchsize], device=device)[0])).data
+            xx = F.softmax(model(chainer.dataset.convert.concat_examples(train_batch, device=device)[0])).data
             if device >= 0:
                 xx = cuda.to_cpu(xx)
 
@@ -241,6 +245,8 @@ def main():
     parser.add_argument('--gpu', '-g', type=int, default=-1)
     parser.add_argument('--cluster', '-c', type=int, default=100)
     parser.add_argument('--weight_decay', '-w', type=float, default=0.0000)
+    parser.add_argument('--unit', '-u', type=int, default=300)
+    parser.add_argument('--alpha', '-a', type=float, default=0.005)
     parser.add_argument('--epoch', '-e', type=int, default=10)
     parser.add_argument('--epoch2', '-e2', type=int, default=10)
     parser.add_argument('--mu', '-mu', type=float, default=30.0)
@@ -277,6 +283,8 @@ def main():
     rand_assign = args.random
     train_file = args.train_file
     test_file = args.test_file
+    unit = args.unit
+    alpha = args.alpha
     sparse = False
 
     ndim = 1
@@ -311,7 +319,7 @@ def main():
         sparse = True
         num_classes = 12045
         if model_type == 'DocModel':
-            model = network.DocModel(n_in=1199855, n_mid=300, n_out=num_clusters)
+            model = network.DocModel(n_in=1199855, n_mid=unit, n_out=num_clusters)
         else:
             raise ValueError
     else:
@@ -332,7 +340,7 @@ def main():
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
 
-    optimizer = chainer.optimizers.Adam(alpha=0.001)
+    optimizer = chainer.optimizers.Adam(alpha=alpha)
     optimizer.setup(model)
 
     train, test = load_data(data_type, ndim, train_file, test_file)
@@ -345,7 +353,7 @@ def main():
 
     trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
 
-    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
+    trainer.extend(extensions.LogReport(trigger=(100, 'iteration')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
          'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
@@ -373,12 +381,13 @@ def main():
         for i in range(num_classes):
             res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
 
-        cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu)
+        cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu, sparse=sparse)
         print(cluster_label)
 
         assignment, count_classes = separate.assign(cluster_label, num_classes, num_clusters)
 
     print(assignment)
+    print(count_classes)
     """
     start classification
     """
@@ -415,7 +424,7 @@ def main():
     trainer.extend(
         extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
         trigger=(20, 'epoch'))
-    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
+    trainer.extend(extensions.LogReport(trigger=(100, 'iteration')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'main/loss', 'main/loss_cluster', 'main/loss_class',
          'validation/main/accuracy', 'validation/main/cluster_accuracy',
