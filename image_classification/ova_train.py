@@ -19,10 +19,12 @@ from importlib import import_module
 import sys, os
 import numpy as np
 import hierarchy_network as h_net
+from scipy.sparse import csr_matrix
 
 import cifar
 import mnist
 
+import doc_preprocess
 import separate
 import dataset
 import updater
@@ -84,6 +86,15 @@ def transform(
     return img, label
 
 
+def general_transform(inputs, sparse):
+    instance, label = inputs
+
+    if sparse:
+        instance = np.array(csr_matrix.todense(instance))
+
+    return instance, label
+
+
 def data_generate():
     instance, labels = np.empty((400, 2), np.float32), np.empty(400, np.int32)
     var = 0.5
@@ -124,6 +135,7 @@ def main():
     parser.add_argument('--weight_decay', '-w', type=float, default=0.0005)
     parser.add_argument('--epoch', '-e', type=int, default=3)
     parser.add_argument('--out', '-o', type=str, default='results')
+    parser.add_argument('--unit', '-u', type=int, default=300)
     parser.add_argument('--seed', '-s', type=int, default=0)
     parser.add_argument('--resume', '-r', default='',
                         help='resume the training from snapshot')
@@ -131,6 +143,8 @@ def main():
     parser.add_argument('--initial_lr', type=float, default=0.05)
     parser.add_argument('--lr_decay_rate', type=float, default=0.5)
     parser.add_argument('--lr_decay_epoch', type=float, default=25)
+    parser.add_argument('--train_file', '-train_f', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
+    parser.add_argument('--test_file', '-test_f', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.test')
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -145,6 +159,9 @@ def main():
     weight_decay = args.weight_decay
     model_path = args.model_path
     opt = args.optimizer
+    unit = args.unit
+    f_train = args.train_file
+    f_test = args.test_file
 
     if data_type == 'toy':
         num_classes = 4
@@ -152,9 +169,14 @@ def main():
         train = chainer.datasets.TupleDataset(data_generate())
         test = chainer.datasets.TupleDataset(data_generate())
 
+        train_transform = partial(general_transform, sparse=False)
+        test_transform = partial(general_transform, sparse=False)
+
         model = ova_network.LinearModel(2, num_classes)
     elif data_type == 'mnist':
         num_classes = 10
+        train_transform = partial(general_transform, sparse=False)
+        test_transform = partial(general_transform, sparse=False)
         if model_type == 'linear':
             train, test = chainer.datasets.get_mnist(ndim=1)
             model = ova_network.LinearModel(784, num_classes)
@@ -179,12 +201,30 @@ def main():
         train = chainer.datasets.tuple_dataset.TupleDataset(train_images, train_labels)
         test = chainer.datasets.tuple_dataset.TupleDataset(test_images, test_labels)
 
+        train_transform = partial(
+            transform, mean=0.0, std=1.0, train=True)
+        test_transform = partial(transform, mean=0.0, std=1.0, train=False)
+
         if model_type == 'Resnet50':
             model = ova_network.ResNet50(num_classes)
             load_npz(model_path, model, not_load_list=['fc7'])
         else:
             raise ValueError
+    elif data_type == 'LSHTC1':
+        num_classes = 12045
+        train = doc_preprocess.load_data(f_train)
+        test = doc_preprocess.load_data(f_test)
+
+        train_transform = partial(general_transform, sparse=True)
+        test_transform = partial(general_transform, sparse=True)
+        if model_type == 'DocModel':
+            model = ova_network.DocModel(n_in=1199855, n_mid=unit, n_out=num_classes)
+        else:
+            raise ValueError
     else:
+        train_transform = partial(
+            transform, mean=0.0, std=1.0, train=True)
+        test_transform = partial(transform, mean=0.0, std=1.0, train=False)
         num_classes = 10
         train, test = chainer.datasets.get_cifar10(scale=1.0)
         if model_type == 'Resnet50':
@@ -197,10 +237,6 @@ def main():
             model = ova_network.CNN(num_classes)
         else:
             raise ValueError
-
-    train_transform = partial(
-        transform, mean=0.0, std=1.0, train=True)
-    test_transform = partial(transform, mean=0.0, std=1.0, train=False)
 
     train = TransformDataset(train, train_transform)
     test = TransformDataset(test, test_transform)

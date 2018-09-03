@@ -74,7 +74,8 @@ class Dataset(TupleDataset):
     def __init__(self, instances, labels, assignment, _transform=None, sparse=False):
         clusters, classes = [assignment[label][0] for label in labels], \
                             [assignment[label][1] for label in labels]
-        super(Dataset, self).__init__(instances, clusters, classes)
+        # lenが取れるように、渡す順番を変える
+        super(Dataset, self).__init__(clusters, classes, instances)
         self.transform = _transform
         self.sparse = sparse
 
@@ -82,12 +83,12 @@ class Dataset(TupleDataset):
         if isinstance(index, slice):
             raise NotImplementedError
             batches = [dataset[index] for dataset in self._datasets]
-            instances = [tuple([self.transform(instance) for instance in batches[0]])]
-            clusters = [tuple([cluster for cluster in batches[1]])]
-            classes = [tuple([_class for _class in batches[2]])]
+            instances = [tuple([self.transform(instance) for instance in batches[2]])]
+            clusters = [tuple([cluster for cluster in batches[0]])]
+            classes = [tuple([_class for _class in batches[1]])]
             return [instances, clusters, classes]
         else:
-            instance, cluster, _class = super().__getitem__(index)
+            cluster, _class, instance = super().__getitem__(index)
             if transform is not None:
                 instance = self.transform(instance)
             if self.sparse:
