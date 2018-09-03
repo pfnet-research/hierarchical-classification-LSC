@@ -234,8 +234,9 @@ def main():
             raise ValueError
     elif data_type == 'LSHTC1':
         num_classes = 12045
-        train = Dataset(*(doc_preprocess.load_data(f_train)))
-        test = Dataset(*(doc_preprocess.load_data(f_test)))
+        train, test = doc_preprocess.load_data(f_train, f_test)
+        train = Dataset(*train)
+        test = Dataset(*test)
 
         train_transform = partial(general_transform, sparse=True)
         test_transform = partial(general_transform, sparse=True)

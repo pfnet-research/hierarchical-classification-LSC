@@ -163,8 +163,7 @@ def load_data(data_type='toy', ndim=1, f_train='', f_test=''):
         (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar10()
         return (train_images, train_labels), (test_images, test_labels)
     elif data_type == 'LSHTC1':
-        (train_instances, train_labels) = doc_preprocess.load_data(f_train)
-        (test_instances, test_labels) = doc_preprocess.load_data(f_test)
+        (train_instances, train_labels), (test_instances, test_labels) = doc_preprocess.load_data(f_train, f_test)
         return (train_instances, train_labels), (test_instances, test_labels)
     elif data_type == 'cifar100':
         mean = np.array([125.3069, 122.95015, 113.866])
