@@ -394,6 +394,14 @@ def main():
 
     print(assignment)
     print(count_classes)
+
+    del optimizer
+    del train_iter
+    del train_updater
+    del trainer
+    del train
+    del test
+
     """
     start classification
     """
