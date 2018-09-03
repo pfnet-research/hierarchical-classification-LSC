@@ -70,12 +70,13 @@ def transform(
     return img
 
 
-class Dataset(TupleDataset):
+class Dataset:
     def __init__(self, instances, labels, assignment, _transform=None, sparse=False):
         clusters, classes = [assignment[label][0] for label in labels], \
                             [assignment[label][1] for label in labels]
-        # lenが取れるように、渡す順番を変える
-        super(Dataset, self).__init__(clusters, classes, instances)
+        length = len(labels)
+        self._datasets = (instances, clusters, classes)
+        self._length = length
         self.transform = _transform
         self.sparse = sparse
 
@@ -88,7 +89,8 @@ class Dataset(TupleDataset):
             classes = [tuple([_class for _class in batches[1]])]
             return [instances, clusters, classes]
         else:
-            cluster, _class, instance = super().__getitem__(index)
+            batches = [dataset[index] for dataset in self._datasets]
+            instance, cluster, _class = tuple(batches)
             if transform is not None:
                 instance = self.transform(instance)
             if self.sparse:

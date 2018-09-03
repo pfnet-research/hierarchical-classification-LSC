@@ -13,6 +13,7 @@ from chainer.datasets import TransformDataset
 from chainercv import transforms
 from functools import partial
 import cv2 as cv
+import six
 
 import ova_network
 from importlib import import_module
@@ -123,6 +124,27 @@ def load_npz(file, obj, path='', strict=True, not_load_list=None):
         d.load(obj, not_load_list)
 
 
+class Dataset(object):
+    def __init__(self, *datasets):
+        if not datasets:
+            raise ValueError('no datasets are given')
+        length = len(datasets[1])
+        self._datasets = datasets
+        self._length = length
+
+    def __getitem__(self, index):
+        batches = [dataset[index] for dataset in self._datasets]
+        if isinstance(index, slice):
+            length = len(batches[0])
+            return [tuple([batch[i] for batch in batches])
+                    for i in six.moves.range(length)]
+        else:
+            return tuple(batches)
+
+    def __len__(self):
+        return self._length
+
+
 def main():
     parser = argparse.ArgumentParser(description='Chainer example: MNIST')
     parser.add_argument('--batchsize', '-b', type=int, default=128,
@@ -212,8 +234,8 @@ def main():
             raise ValueError
     elif data_type == 'LSHTC1':
         num_classes = 12045
-        train = doc_preprocess.load_data(f_train)
-        test = doc_preprocess.load_data(f_test)
+        train = Dataset(*(doc_preprocess.load_data(f_train)))
+        test = Dataset(*(doc_preprocess.load_data(f_test)))
 
         train_transform = partial(general_transform, sparse=True)
         test_transform = partial(general_transform, sparse=True)
