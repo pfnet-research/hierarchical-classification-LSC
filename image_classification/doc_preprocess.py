@@ -24,6 +24,12 @@ def load_data(f_train, f_test):
 
     size = np.size(test_y)
     for i in range(size):
-        test_y[i] = label_map[test_y[i]]
+        if test_y[i] in label_map.keys():
+            test_y[i] = label_map[test_y[i]]
+        else:
+            print(test_y[i])
+            label_map[test_y[i]] = new_label
+            test_y[i] = new_label
+            new_label += 1
 
     return (X, y), (test_X, test_y)
