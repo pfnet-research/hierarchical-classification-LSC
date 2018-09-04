@@ -22,14 +22,14 @@ def load_data(f_train, f_test):
     test_data = load_svmlight_files([f_test])
     test_X, test_y = test_data[0].astype(np.float32), test_data[1].astype(np.int32)
 
-    size = np.size(test_y)
-    for i in range(size):
-        if test_y[i] in label_map.keys():
-            test_y[i] = label_map[test_y[i]]
+    row, actual_row = 0, 0
+    while row < np.size(test_y):
+        if test_y[row] in label_map.keys():
+            test_X[row] = test_X[actual_row]
+            test_y[row] = label_map[test_y[row]]
+            row += 1
         else:
-            print(test_y[i])
-            label_map[test_y[i]] = new_label
-            test_y[i] = new_label
-            new_label += 1
+            test_y = np.delete(test_y, row)
+        actual_row += 1
 
-    return (X, y), (test_X, test_y)
+    return (X, y), (test_X[:row], test_y)

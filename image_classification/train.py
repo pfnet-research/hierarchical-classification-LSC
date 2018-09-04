@@ -30,6 +30,7 @@ import accuracy
 
 class Dataset(object):
     def __init__(self, instances, labels, sparse=False):
+        print(instances.shape, labels.shape)
         instances, labels = instances[np.argsort(labels)], np.sort(labels)
         label_type = np.unique(labels)
         partition = [np.searchsorted(labels, k, side='left') for k in label_type]
