@@ -96,3 +96,6 @@ class Dataset:
             if self.sparse:
                 instance = np.array(csr_matrix.todense(instance))
             return instance, cluster, _class
+
+    def __len__(self):
+        return self._length

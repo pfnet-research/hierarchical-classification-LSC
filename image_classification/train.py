@@ -9,6 +9,7 @@ from chainer.backends import cuda
 import random
 import argparse
 import chainer
+from chainer import function
 from chainer import serializers
 import network
 from importlib import import_module
@@ -26,6 +27,7 @@ import separate
 import dataset
 import updater
 import accuracy
+import six
 
 
 class Dataset(object):
@@ -119,6 +121,95 @@ class Updater(chainer.training.StandardUpdater):
         chainer.reporter.report({'main/loss_cc': loss_cc})
         chainer.reporter.report({'main/loss_mut_info': loss_mut_info})
         chainer.reporter.report({'main/H_Y': H_Y})
+
+    @staticmethod
+    def entropy(x, axis=0):
+        return - F.sum(x * F.log(x + 1e-8), axis=axis)
+
+    @staticmethod
+    def loss_class_clustering(p, q):
+        return F.sum(p * F.log((p + 1e-8) / (q + 1e-8)))
+
+    @staticmethod
+    def loss_cross_entropy(p, q):
+        index = F.argmax(q, axis=1).data
+        u = F.select_item(p, index)
+        return -F.sum(F.log(u + 1e-8))
+
+
+class ParallelUpdater(chainer.training.ParallelUpdater):
+    def __init__(self, model, data, iter, optimizer, lam=0.5, mu=10.0, devices=None):
+        self.model = model
+        self.data = data
+        self.lam = lam
+        self.mu = mu
+        super(ParallelUpdater, self).__init__(iter, optimizer, devices=devices)
+
+    def update_core(self):
+        optimizer = self.get_optimizer('main')
+        model_main = optimizer.target
+        models_others = {k: v for k, v in self._models.items()
+                         if v is not model_main}
+
+        batch = self.get_iterator('main').next()
+
+        n = len(self._models)
+        in_arrays_list = {}
+        for i, key in enumerate(six.iterkeys(self._models)):
+            in_arrays_list[key] = self.converter(
+                batch[i::n], self._devices[key])
+
+        # For reducing memory
+        for model in six.itervalues(self._models):
+            model.cleargrads()
+
+        losses = []
+        for model_key, model in six.iteritems(self._models):
+            instances, labels, sampled_instances = in_arrays_list[model_key]
+
+            with function.force_backprop_mode():
+                dev_id = self._devices[model_key]
+                dev_id = dev_id if 0 <= dev_id else None
+                with cuda.get_device_from_id(dev_id):
+                    # tuple of instance array and label array
+                    batchsize = len(instances)
+
+                    y = F.softmax(self.model(instances, unchain=True))
+
+                    H_Y = self.entropy((F.sum(y, axis=0) / batchsize), axis=0)
+                    H_YX = 0.0
+                    loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
+
+                    # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
+                    with chainer.using_config('train', False):
+                        sampled_y = F.softmax(self.model(sampled_instances))
+
+                    loss_cc = self.loss_cross_entropy(y, sampled_y) / batchsize
+
+                    loss = loss_cc + loss_mut_info
+
+            losses.append(loss)
+
+        for model in six.itervalues(self._models):
+            model.cleargrads()
+
+        for loss in losses:
+            loss.backward(loss_scale=self.loss_scale)
+
+        for model in six.itervalues(models_others):
+            model_main.addgrads(model)
+
+        optimizer.update()
+
+        for model in six.itervalues(models_others):
+            model.copyparams(model_main)
+
+        """
+        chainer.reporter.report({'main/loss': loss})
+        chainer.reporter.report({'main/loss_cc': loss_cc})
+        chainer.reporter.report({'main/loss_mut_info': loss_mut_info})
+        chainer.reporter.report({'main/H_Y': H_Y})
+        """
 
     @staticmethod
     def entropy(x, axis=0):
@@ -351,9 +442,14 @@ def main():
     train = Dataset(*train, sparse)
     test = Dataset(*test, sparse)
 
-    train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
+    train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize)
 
-    train_updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
+    if isinstance(gpu, int):
+        train_updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
+    elif isinstance(gpu, dict):
+        train_updater = ParallelUpdater(model, train, train_iter, optimizer, devices=gpu, mu=args.mu)
+    else:
+        raise ValueError
 
     trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
 
@@ -423,10 +519,15 @@ def main():
     train = dataset.Dataset(*train, assignment, train_transform, sparse=sparse)
     test = dataset.Dataset(*test, assignment, test_transform, sparse=sparse)
 
-    train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
-    test_iter = chainer.iterators.SerialIterator(test, batch_size=args.batchsize, repeat=False)
+    train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize)
+    test_iter = chainer.iterators.MultiprocessIterator(test, batch_size=args.batchsize, repeat=False)
 
-    train_updater = updater.Updater(model, train, train_iter, optimizer2, num_clusters, device=gpu)
+    if isinstance(gpu, int):
+        train_updater = updater.Updater(model, train, train_iter, optimizer2, num_clusters, device=gpu)
+    elif isinstance(gpu, dict):
+        train_updater = updater.ParallelUpdater(model, train, train_iter, optimizer2, num_clusters, devices=gpu)
+    else:
+        raise ValueError
 
     trainer = training.Trainer(train_updater, (args.epoch2, 'epoch'), args.out)
 
