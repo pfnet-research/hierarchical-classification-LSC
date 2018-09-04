@@ -70,7 +70,7 @@ def transform(
     return img
 
 
-class Dataset:
+class Dataset(object):
     def __init__(self, instances, labels, assignment, _transform=None, sparse=False):
         clusters, classes = [assignment[label][0] for label in labels], \
                             [assignment[label][1] for label in labels]
@@ -91,7 +91,7 @@ class Dataset:
         else:
             batches = [dataset[index] for dataset in self._datasets]
             instance, cluster, _class = tuple(batches)
-            if transform is not None:
+            if self.transform is not None:
                 instance = self.transform(instance)
             if self.sparse:
                 instance = np.array(csr_matrix.todense(instance))

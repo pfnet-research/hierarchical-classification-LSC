@@ -353,7 +353,7 @@ def main():
     parser.add_argument('--initial_lr', type=float, default=0.05)
     parser.add_argument('--lr_decay_rate', type=float, default=0.5)
     parser.add_argument('--lr_decay_epoch', type=float, default=25)
-    parser.add_argument('--random', action='store_true', default=False,
+    parser.add_argument('--random', action='store_false', default=True,
                         help='Use random assignment or not')
     parser.add_argument('--valid', '--v', action='store_true',
                         help='Use random assignment or not')
@@ -435,36 +435,36 @@ def main():
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
 
-    optimizer = chainer.optimizers.Adam(alpha=alpha)
-    optimizer.setup(model)
-
-    train, test = load_data(data_type, ndim, train_file, test_file)
-    train = Dataset(*train, sparse)
-    test = Dataset(*test, sparse)
-
-    train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize)
-
-    if isinstance(gpu, int):
-        train_updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
-    elif isinstance(gpu, dict):
-        train_updater = ParallelUpdater(model, train, train_iter, optimizer, devices=gpu, mu=args.mu)
-    else:
-        raise ValueError
-
-    trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
-
-    trainer.extend(extensions.LogReport(trigger=(100, 'iteration')))
-    trainer.extend(extensions.PrintReport(
-        ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
-         'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
-    trainer.extend(extensions.snapshot(), trigger=(5, 'epoch'))
-
-    if args.resume:
-        chainer.serializers.load_npz(args.resume, trainer)
-
     if rand_assign:
         assignment, count_classes = random_assignment(num_clusters, num_classes)
     else:
+        optimizer = chainer.optimizers.Adam(alpha=alpha)
+        optimizer.setup(model)
+
+        train, test = load_data(data_type, ndim, train_file, test_file)
+        train = Dataset(*train, sparse)
+        test = Dataset(*test, sparse)
+
+        train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize)
+
+        if isinstance(gpu, int):
+            train_updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
+        elif isinstance(gpu, dict):
+            train_updater = ParallelUpdater(model, train, train_iter, optimizer, devices=gpu, mu=args.mu)
+        else:
+            raise ValueError
+
+        trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
+
+        trainer.extend(extensions.LogReport(trigger=(100, 'iteration')))
+        trainer.extend(extensions.PrintReport(
+            ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
+             'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
+        trainer.extend(extensions.snapshot(), trigger=(5, 'epoch'))
+
+        if args.resume:
+            chainer.serializers.load_npz(args.resume, trainer)
+
         trainer.run()
         """
         end clustering
@@ -488,15 +488,15 @@ def main():
 
         assignment, count_classes = separate.assign(cluster_label, num_classes, num_clusters)
 
+        del optimizer
+        del train_iter
+        del train_updater
+        del trainer
+        del train
+        del test
+
     print(assignment)
     print(count_classes)
-
-    del optimizer
-    del train_iter
-    del train_updater
-    del trainer
-    del train
-    del test
 
     """
     start classification
@@ -514,10 +514,10 @@ def main():
         # Make a specified GPU current
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
-    train, test = load_data(data_type, ndim, train_file, test_file)
+    (train_instances, train_labels), (test_instances, test_labels) = load_data(data_type, ndim, train_file, test_file)
 
-    train = dataset.Dataset(*train, assignment, train_transform, sparse=sparse)
-    test = dataset.Dataset(*test, assignment, test_transform, sparse=sparse)
+    train = dataset.Dataset(train_instances, train_labels, assignment, _transform=train_transform, sparse=sparse)
+    test = dataset.Dataset(test_instances, test_labels, assignment, _transform=test_transform, sparse=sparse)
 
     train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize)
     test_iter = chainer.iterators.MultiprocessIterator(test, batch_size=args.batchsize, repeat=False)
