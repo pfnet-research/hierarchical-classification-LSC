@@ -20,7 +20,7 @@ class LinearModel(chainer.Chain):
 
 
 class DocModel(chainer.Chain):
-    def __init__(self, n_in, n_mid, n_out):
+    def __init__(self, n_in, n_mid, n_out, relu=False):
         super(DocModel, self).__init__()
         with self.init_scope():
             self.w1 = L.Linear(n_in, n_mid)

@@ -353,7 +353,7 @@ def main():
     parser.add_argument('--initial_lr', type=float, default=0.05)
     parser.add_argument('--lr_decay_rate', type=float, default=0.5)
     parser.add_argument('--lr_decay_epoch', type=float, default=25)
-    parser.add_argument('--random', action='store_false', default=True,
+    parser.add_argument('--random', action='store_true', default=False,
                         help='Use random assignment or not')
     parser.add_argument('--valid', '--v', action='store_true',
                         help='Use random assignment or not')
