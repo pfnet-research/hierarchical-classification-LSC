@@ -247,16 +247,16 @@ def load_data(data_type='toy', ndim=1, f_train='', f_test=''):
     if data_type == 'toy':
         train_instances, train_labels = data_generate()
         test_instances, test_labels = data_generate()
-        return (train_instances, train_labels), (test_instances, test_labels)
+        return (train_instances, train_labels), (test_instances, test_labels), 4
     elif data_type == 'mnist':
         (train_images, train_labels), (test_images, test_labels) = mnist.get_mnist(ndim=ndim)
-        return (train_images, train_labels), (test_images, test_labels)
+        return (train_images, train_labels), (test_images, test_labels), 10
     elif data_type == 'cifar10':
         (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar10()
-        return (train_images, train_labels), (test_images, test_labels)
+        return (train_images, train_labels), (test_images, test_labels), 10
     elif data_type == 'LSHTC1':
-        (train_instances, train_labels), (test_instances, test_labels) = doc_preprocess.load_data(f_train, f_test)
-        return (train_instances, train_labels), (test_instances, test_labels)
+        (train_instances, train_labels), (test_instances, test_labels), num_classes = doc_preprocess.load_data(f_train, f_test)
+        return (train_instances, train_labels), (test_instances, test_labels), num_classes
     elif data_type == 'cifar100':
         mean = np.array([125.3069, 122.95015, 113.866])
         std = np.array([62.99325, 62.088604, 66.70501])
@@ -265,7 +265,7 @@ def load_data(data_type='toy', ndim=1, f_train='', f_test=''):
         test_images -= mean[:, None, None]
         train_images /= std[:, None, None]
         test_images /= std[:, None, None]
-        return (train_images, train_labels), (test_images, test_labels)
+        return (train_images, train_labels), (test_images, test_labels), 100
     else:
         raise ValueError
 
@@ -417,6 +417,13 @@ def main():
             model = network.DocModel(n_in=1199855, n_mid=unit, n_out=num_clusters)
         else:
             raise ValueError
+    elif data_type == 'Dmoz':
+        sparse=True
+        num_classes = 833484
+        if model_type == 'DocModel':
+            model = network.DocModel(n_in=1199855, n_mid=unit, n_out=num_clusters)
+        else:
+            raise ValueError
     else:
         num_classes = 10
         if model_type == 'Resnet50':
@@ -441,7 +448,7 @@ def main():
         optimizer = chainer.optimizers.Adam(alpha=alpha)
         optimizer.setup(model)
 
-        train, test = load_data(data_type, ndim, train_file, test_file)
+        train, test, num_classes = load_data(data_type, ndim, train_file, test_file)
         train = Dataset(*train, sparse)
         test = Dataset(*test, sparse)
 

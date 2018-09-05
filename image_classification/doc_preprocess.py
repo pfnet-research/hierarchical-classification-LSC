@@ -32,4 +32,4 @@ def load_data(f_train, f_test):
             test_y = np.delete(test_y, row)
         actual_row += 1
 
-    return (X, y), (test_X[:row], test_y)
+    return (X, y), (test_X[:row], test_y), new_label
