@@ -380,7 +380,6 @@ def main():
     test_instance_file = args.test_instance
     test_label_file = args.test_label
 
-    test_file = args.test_file
     unit = args.unit
     alpha = args.alpha
     sparse = False
