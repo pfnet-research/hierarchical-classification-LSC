@@ -2,9 +2,11 @@ import numpy as np
 from sklearn.datasets import load_svmlight_files
 
 
-def load_data(f_train, f_test):
-    data = load_svmlight_files([f_train])
-    X, y = data[0].astype(np.float32), data[1].astype(np.int32)
+def load_data(f_train_instance, f_train_label, f_test_instance, f_test_label):
+    with open(f_train_instance, 'rb') as f:
+        X = np.load(f)
+    with open(f_train_label, 'rb') as f:
+        y = np.load(f)
 
     label_map = {}
     new_label = 0
@@ -19,8 +21,10 @@ def load_data(f_train, f_test):
             y[i] = new_label
             new_label += 1
 
-    test_data = load_svmlight_files([f_test])
-    test_X, test_y = test_data[0].astype(np.float32), test_data[1].astype(np.int32)
+    with open(f_test_instance, 'rb') as f:
+        test_X = np.load(f)
+    with open(f_test_label, 'rb') as f:
+        test_y = np.load(f)
 
     row, actual_row = 0, 0
     while row < np.size(test_y):

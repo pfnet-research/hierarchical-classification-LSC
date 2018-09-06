@@ -243,7 +243,7 @@ def data_generate():
     return instance, labels
 
 
-def load_data(data_type='toy', ndim=1, f_train='', f_test=''):
+def load_data(data_type='toy', ndim=1, f_train=('', ''), f_test=('', '')):
     if data_type == 'toy':
         train_instances, train_labels = data_generate()
         test_instances, test_labels = data_generate()
@@ -411,17 +411,21 @@ def main():
         else:
             raise ValueError
     elif data_type == 'LSHTC1':
-        sparse = True
+        sparse = False
         num_classes = None
         if model_type == 'DocModel':
             model = network.DocModel(n_in=328282, n_mid=unit, n_out=num_clusters)
+        elif model_type == 'linear':
+            model = network.LinearModel(n_in=1024, n_out=num_clusters)
         else:
             raise ValueError
     elif data_type == 'Dmoz':
-        sparse = True
+        sparse = False
         num_classes = None
         if model_type == 'DocModel':
             model = network.DocModel(n_in=561127, n_mid=unit, n_out=num_clusters)
+        elif model_type == 'linear':
+            model = network.LinearModel(n_in=1024, n_out=num_clusters)
         else:
             raise ValueError
     else:
