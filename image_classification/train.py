@@ -421,7 +421,7 @@ def main():
         sparse = False
         num_classes = None
         if model_type == 'DocModel':
-            model = network.DocModel(n_in=328282, n_mid=unit, n_out=num_clusters)
+            model = network.DocModel(n_in=1024, n_mid=unit, n_out=num_clusters)
         elif model_type == 'linear':
             model = network.LinearModel(n_in=1024, n_out=num_clusters)
         else:
