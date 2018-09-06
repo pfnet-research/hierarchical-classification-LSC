@@ -254,7 +254,7 @@ def load_data(data_type='toy', ndim=1, f_train='', f_test=''):
     elif data_type == 'cifar10':
         (train_images, train_labels), (test_images, test_labels) = cifar.get_cifar10()
         return (train_images, train_labels), (test_images, test_labels), 10
-    elif data_type == 'LSHTC1':
+    elif data_type == 'LSHTC1' or data_type == 'Dmoz':
         (train_instances, train_labels), (test_instances, test_labels), num_classes = doc_preprocess.load_data(f_train, f_test)
         return (train_instances, train_labels), (test_instances, test_labels), num_classes
     elif data_type == 'cifar100':
@@ -412,16 +412,16 @@ def main():
             raise ValueError
     elif data_type == 'LSHTC1':
         sparse = True
-        num_classes = 12045
+        num_classes = None
         if model_type == 'DocModel':
-            model = network.DocModel(n_in=1199855, n_mid=unit, n_out=num_clusters)
+            model = network.DocModel(n_in=328282, n_mid=unit, n_out=num_clusters)
         else:
             raise ValueError
     elif data_type == 'Dmoz':
-        sparse=True
-        num_classes = 833484
+        sparse = True
+        num_classes = None
         if model_type == 'DocModel':
-            model = network.DocModel(n_in=1199855, n_mid=unit, n_out=num_clusters)
+            model = network.DocModel(n_in=561127, n_mid=unit, n_out=num_clusters)
         else:
             raise ValueError
     else:
@@ -521,7 +521,8 @@ def main():
         # Make a specified GPU current
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
-    (train_instances, train_labels), (test_instances, test_labels) = load_data(data_type, ndim, train_file, test_file)
+    (train_instances, train_labels), (test_instances, test_labels), num_classes \
+        = load_data(data_type, ndim, train_file, test_file)
 
     train = dataset.Dataset(train_instances, train_labels, assignment, _transform=train_transform, sparse=sparse)
     test = dataset.Dataset(test_instances, test_labels, assignment, _transform=test_transform, sparse=sparse)
