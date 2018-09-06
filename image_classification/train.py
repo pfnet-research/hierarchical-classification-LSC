@@ -342,8 +342,11 @@ def main():
     parser.add_argument('--epoch2', '-e2', type=int, default=10)
     parser.add_argument('--mu', '-mu', type=float, default=30.0)
     parser.add_argument('--out', '-o', type=str, default='results')
-    parser.add_argument('--train_file', '-train_f', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
-    parser.add_argument('--test_file', '-test_f', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.test')
+    parser.add_argument('--train_instance', '-train_i', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
+    parser.add_argument('--train_label', '-train_l', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
+    parser.add_argument('--test_instance', '-test_i', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
+    parser.add_argument('--test_label', '-test_l', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
+
     parser.add_argument('--seed', '-s', type=int, default=0)
     parser.add_argument('--resume', '-r', default='',
                         help='resume the training from snapshot')
@@ -372,7 +375,11 @@ def main():
     opt = args.optimizer
     model_path = args.model_path
     rand_assign = args.random
-    train_file = args.train_file
+    train_instance_file = args.train_instance
+    train_label_file = args.train_label
+    test_instance_file = args.test_instance
+    test_label_file = args.test_label
+
     test_file = args.test_file
     unit = args.unit
     alpha = args.alpha
@@ -452,7 +459,8 @@ def main():
         optimizer = chainer.optimizers.Adam(alpha=alpha)
         optimizer.setup(model)
 
-        train, test, num_classes = load_data(data_type, ndim, train_file, test_file)
+        train, test, num_classes = load_data(data_type, ndim, (train_instance_file, train_label_file),
+                                             (test_instance_file, test_label_file))
         train = Dataset(*train, sparse)
         test = Dataset(*test, sparse)
 
@@ -526,7 +534,8 @@ def main():
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
     (train_instances, train_labels), (test_instances, test_labels), num_classes \
-        = load_data(data_type, ndim, train_file, test_file)
+        = load_data(data_type, ndim, (train_instance_file, train_label_file),
+                                             (test_instance_file, test_label_file))
 
     train = dataset.Dataset(train_instances, train_labels, assignment, _transform=train_transform, sparse=sparse)
     test = dataset.Dataset(test_instances, test_labels, assignment, _transform=test_transform, sparse=sparse)
