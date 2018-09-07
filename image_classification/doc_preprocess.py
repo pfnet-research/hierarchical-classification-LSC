@@ -16,7 +16,7 @@ def load_data(f_train, f_test):
     X, y = train_data[0].astype(np.float32), train_data[1].astype(np.int32)
     test_X, test_y = test_data[0].astype(np.float32), test_data[1].astype(np.int32)
     test_X = test_X.resize((test_X.shape[0], X.shape[1]))
-
+    print(test_X.shape)
     label_map = {}
     new_label = 0
 
@@ -45,5 +45,5 @@ def load_data(f_train, f_test):
         else:
             test_y = np.delete(test_y, row)
         actual_row += 1
-    
+
     return (X, y), (test_X[:row], test_y), new_label
