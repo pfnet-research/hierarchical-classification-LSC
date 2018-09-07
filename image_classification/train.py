@@ -376,8 +376,8 @@ def main():
         optimizer = chainer.optimizers.Adam(alpha=alpha)
         optimizer.setup(model)
 
-        train = Dataset(*train_instances, sparse)
-        test = Dataset(*test_instances, sparse)
+        train = Dataset(*(train_instances, train_labels), sparse)
+        test = Dataset(*(test_instances, test_labels), sparse)
 
         train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize)
 
