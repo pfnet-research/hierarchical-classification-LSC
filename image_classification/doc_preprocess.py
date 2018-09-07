@@ -42,8 +42,6 @@ def load_data(f_train, f_test):
             test_X[row] = test_X[actual_row]
             test_y[row] = label_map[test_y[actual_row]]
             row += 1
-        else:
-            continue
         actual_row += 1
 
     return (X, y), (test_X[:row], test_y[:row]), new_label
