@@ -243,7 +243,7 @@ def data_generate():
     return instance, labels
 
 
-def load_data(data_type='toy', ndim=1, f_train=('', ''), f_test=('', '')):
+def load_data(data_type='toy', ndim=1, f_train='', f_test=''):
     if data_type == 'toy':
         train_instances, train_labels = data_generate()
         test_instances, test_labels = data_generate()
@@ -256,7 +256,7 @@ def load_data(data_type='toy', ndim=1, f_train=('', ''), f_test=('', '')):
         return (train_images, train_labels), (test_images, test_labels), 10
     elif data_type == 'LSHTC1' or data_type == 'Dmoz':
         (train_instances, train_labels), (test_instances, test_labels), num_classes = \
-            doc_preprocess.load_data(f_train[0], f_train[1], f_test[0], f_test[1])
+            doc_preprocess.load_data(f_train, f_test)
         return (train_instances, train_labels), (test_instances, test_labels), num_classes
     elif data_type == 'cifar100':
         mean = np.array([125.3069, 122.95015, 113.866])
@@ -343,6 +343,10 @@ def main():
     parser.add_argument('--epoch2', '-e2', type=int, default=10)
     parser.add_argument('--mu', '-mu', type=float, default=30.0)
     parser.add_argument('--out', '-o', type=str, default='results')
+
+    parser.add_argument('--train_file', '-train_f', type=str, default='dataset/LSHTC1/LSHTC1_selected.train')
+    parser.add_argument('--test_file', '-test_f', type=str, default='dataset/LSHTC1/LSHTC1_selected.test')
+
     parser.add_argument('--train_instance', '-train_i', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
     parser.add_argument('--train_label', '-train_l', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
     parser.add_argument('--test_instance', '-test_i', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
@@ -376,10 +380,8 @@ def main():
     opt = args.optimizer
     model_path = args.model_path
     rand_assign = args.random
-    train_instance_file = args.train_instance
-    train_label_file = args.train_label
-    test_instance_file = args.test_instance
-    test_label_file = args.test_label
+    train_file = args.train_file
+    test_file = args.test_file
 
     unit = args.unit
     alpha = args.alpha
@@ -418,7 +420,7 @@ def main():
         else:
             raise ValueError
     elif data_type == 'LSHTC1':
-        sparse = False
+        sparse = True
         num_classes = None
         if model_type == 'DocModel':
             model = network.DocModel(n_in=1024, n_mid=unit, n_out=num_clusters)
@@ -427,7 +429,7 @@ def main():
         else:
             raise ValueError
     elif data_type == 'Dmoz':
-        sparse = False
+        sparse = True
         num_classes = None
         if model_type == 'DocModel':
             model = network.DocModel(n_in=561127, n_mid=unit, n_out=num_clusters)
@@ -459,8 +461,7 @@ def main():
         optimizer = chainer.optimizers.Adam(alpha=alpha)
         optimizer.setup(model)
 
-        train, test, num_classes = load_data(data_type, ndim, (train_instance_file, train_label_file),
-                                             (test_instance_file, test_label_file))
+        train, test, num_classes = load_data(data_type, ndim, train_file, test_file)
         train = Dataset(*train, sparse)
         test = Dataset(*test, sparse)
 
@@ -534,8 +535,7 @@ def main():
         chainer.backends.cuda.get_device_from_id(gpu).use()
         model.to_gpu()  # Copy the model to the GPU
     (train_instances, train_labels), (test_instances, test_labels), num_classes \
-        = load_data(data_type, ndim, (train_instance_file, train_label_file),
-                                             (test_instance_file, test_label_file))
+        = load_data(data_type, ndim, train_file, test_file)
 
     train = dataset.Dataset(train_instances, train_labels, assignment, _transform=train_transform, sparse=sparse)
     test = dataset.Dataset(test_instances, test_labels, assignment, _transform=test_transform, sparse=sparse)
