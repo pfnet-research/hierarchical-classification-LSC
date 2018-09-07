@@ -10,8 +10,8 @@ def load_data(f_train, f_test):
     with open(f_train_label, 'rb') as f:
         y = np.load(f).astype(np.int32)
     """
-    train_data = load_svmlight_files([f_train])
-    test_data = load_svmlight_files([f_test])
+    train_data = load_svmlight_files([f_train], zero_based=True)
+    test_data = load_svmlight_files([f_test], zero_based=True)
 
     X, y = train_data[0].astype(np.float32), train_data[1].astype(np.int32)
     test_X, test_y = test_data[0].astype(np.float32), test_data[1].astype(np.int32)
