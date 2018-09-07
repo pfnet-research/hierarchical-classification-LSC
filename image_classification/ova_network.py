@@ -7,7 +7,7 @@ class LinearModel(chainer.Chain):
     def __init__(self, n_in, n_out):
         super(LinearModel, self).__init__()
         with self.init_scope():
-            self.w = L.Linear(n_in, n_out)
+            self.w = L.Linear(None, n_out)
 
     def __call__(self, x):
         return self.w(x)
@@ -17,7 +17,7 @@ class DocModel(chainer.Chain):
     def __init__(self, n_in, n_mid, n_out):
         super(DocModel, self).__init__()
         with self.init_scope():
-            self.w1 = L.Linear(n_in, n_mid)
+            self.w1 = L.Linear(None, n_mid)
             self.w2 = L.Linear(n_mid, n_out)
 
     def __call__(self, x):
