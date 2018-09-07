@@ -36,7 +36,6 @@ def load_data(f_train, f_test):
         test_y = np.load(f).astype(np.int32)
     """
 
-    test_X = lil_matrix(test_X)
     row, actual_row = 0, 0
     while row < np.size(test_y):
         if test_y[row] in label_map.keys():
@@ -46,6 +45,5 @@ def load_data(f_train, f_test):
         else:
             test_y = np.delete(test_y, row)
         actual_row += 1
-    test_X = csr_matrix(test_X)
-
+    
     return (X, y), (test_X[:row], test_y), new_label
