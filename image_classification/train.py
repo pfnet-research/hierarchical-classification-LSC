@@ -423,7 +423,7 @@ def main():
         if model_type == 'DocModel':
             model = network.DocModel(n_in=1024, n_mid=unit, n_out=num_clusters)
         elif model_type == 'linear':
-            model = network.LinearModel(n_in=1024, n_out=num_clusters)
+            model = network.LinearModel(n_in=61724, n_out=num_clusters)
         else:
             raise ValueError
     elif data_type == 'Dmoz':
