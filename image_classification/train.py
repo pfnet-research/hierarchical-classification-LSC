@@ -256,8 +256,8 @@ def main():
     parser.add_argument('--mu', '-mu', type=float, default=30.0)
     parser.add_argument('--out', '-o', type=str, default='results')
 
-    parser.add_argument('--train_file', '-train_f', type=str, default='dataset/LSHTC1/LSHTC1_selected.train')
-    parser.add_argument('--test_file', '-test_f', type=str, default='dataset/LSHTC1/LSHTC1_selected.test')
+    parser.add_argument('--train_file', '-train_f', type=str, default='dataset/LSHTC1/LSHTC1_selected03.train')
+    parser.add_argument('--test_file', '-test_f', type=str, default='dataset/LSHTC1/LSHTC1_selected03.test')
 
     parser.add_argument('--train_instance', '-train_i', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
     parser.add_argument('--train_label', '-train_l', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
@@ -337,7 +337,7 @@ def main():
         if model_type == 'DocModel':
             model = network.DocModel(n_in=1024, n_mid=unit, n_out=num_clusters)
         elif model_type == 'linear':
-            model = network.LinearModel(n_in=61724, n_out=num_clusters)
+            model = network.LinearModel(n_in=92586, n_out=num_clusters)
         else:
             raise ValueError
     elif data_type == 'Dmoz':
