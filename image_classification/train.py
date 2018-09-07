@@ -101,7 +101,9 @@ class Updater(chainer.training.StandardUpdater):
         instances, labels, sampled_instances = self.converter(batch, self.device)
         y = F.softmax(self.model(instances, unchain=True))
 
-        H_Y = self.entropy((F.sum(y, axis=0) / batchsize), axis=0)
+        tmp_y = 0.1 * y + 0.9 * self.cum_y
+        self.cum_y = 0.1 * np.ones(y.data.shape)[np.argmax(y.data, axis=1)] / batchsize + 0.9 * self.cum_y
+        H_Y = self.entropy((F.sum(tmp_y, axis=0) / batchsize), axis=0)
         H_YX = F.sum(self.entropy(y, axis=1), axis=0) / batchsize
         chainer.reporter.report({'main/H_YX': H_YX})
         H_YX = 0
@@ -415,7 +417,6 @@ def main():
             res_sum = tuple(res_sum[j] + res[i][j] for j in range(num_clusters))
         """
         cluster_label = separate.det_cluster(model, train, num_classes, batchsize=128, device=gpu, sparse=sparse)
-        print(cluster_label)
 
         assignment, count_classes = separate.assign(cluster_label, num_classes, num_clusters)
 
@@ -426,7 +427,6 @@ def main():
         del train
         del test
 
-    print(assignment)
     print(count_classes)
 
     """
