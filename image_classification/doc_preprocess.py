@@ -37,13 +37,13 @@ def load_data(f_train, f_test):
     """
 
     row, actual_row = 0, 0
-    while row < np.size(test_y):
-        if test_y[row] in label_map.keys():
+    while actual_row < np.size(test_y):
+        if test_y[actual_row] in label_map.keys():
             test_X[row] = test_X[actual_row]
-            test_y[row] = label_map[test_y[row]]
+            test_y[row] = label_map[test_y[actual_row]]
             row += 1
         else:
-            test_y = np.delete(test_y, row)
+            continue
         actual_row += 1
 
-    return (X, y), (test_X[:row], test_y), new_label
+    return (X, y), (test_X[:row], test_y[:row]), new_label

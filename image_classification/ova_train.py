@@ -165,8 +165,8 @@ def main():
     parser.add_argument('--initial_lr', type=float, default=0.05)
     parser.add_argument('--lr_decay_rate', type=float, default=0.5)
     parser.add_argument('--lr_decay_epoch', type=float, default=25)
-    parser.add_argument('--train_file', '-train_f', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
-    parser.add_argument('--test_file', '-test_f', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.test')
+    parser.add_argument('--train_file', '-train_f', type=str, default='dataset/LSHTC1/LSHTC1_selected03.train')
+    parser.add_argument('--test_file', '-test_f', type=str, default='dataset/LSHTC1/LSHTC1_selected03.test')
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -233,8 +233,7 @@ def main():
         else:
             raise ValueError
     elif data_type == 'LSHTC1':
-        num_classes = 12045
-        train, test = doc_preprocess.load_data(f_train, f_test)
+        train, test, num_classes = doc_preprocess.load_data(f_train, f_test)
         train = Dataset(*train)
         test = Dataset(*test)
 
@@ -242,6 +241,8 @@ def main():
         test_transform = partial(general_transform, sparse=True)
         if model_type == 'DocModel':
             model = ova_network.DocModel(n_in=1199855, n_mid=unit, n_out=num_classes)
+        elif model_type == 'linear':
+            model = ova_network.LinearModel(n_in=92586, n_out=num_classes)
         else:
             raise ValueError
     else:

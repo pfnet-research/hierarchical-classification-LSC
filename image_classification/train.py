@@ -240,7 +240,9 @@ def load_npz(file, obj, path='', strict=True, not_load_list=None):
 
 def main():
     parser = argparse.ArgumentParser(description='Chainer example: MNIST')
-    parser.add_argument('--batchsize', '-b', type=int, default=128,
+    parser.add_argument('--batchsize', '-b', type=int, default=256,
+                        help='Number of images in each mini-batch')
+    parser.add_argument('--batchsize2', '-b2', type=int, default=64,
                         help='Number of images in each mini-batch')
     parser.add_argument('--data_type', '-d', type=str, default='LSHTC1')
     parser.add_argument('--model_type', '-m', type=str, default='DocModel')
@@ -447,8 +449,8 @@ def main():
     train = dataset.Dataset(train_instances, train_labels, assignment, _transform=train_transform, sparse=sparse)
     test = dataset.Dataset(test_instances, test_labels, assignment, _transform=test_transform, sparse=sparse)
 
-    train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize)
-    test_iter = chainer.iterators.MultiprocessIterator(test, batch_size=args.batchsize, repeat=False)
+    train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize2)
+    test_iter = chainer.iterators.MultiprocessIterator(test, batch_size=args.batchsize2, repeat=False)
 
     train_updater = updater.Updater(model, train, train_iter, optimizer2, num_clusters, device=gpu)
 
