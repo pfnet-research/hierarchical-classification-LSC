@@ -435,6 +435,8 @@ def main():
     model = h_net.HierarchicalNetwork(model, num_clusters, count_classes, n_in=n_in)
     if opt == 'Adam':
         optimizer2 = chainer.optimizers.Adam(alpha=initial_lr)
+    elif opt == 'SGD':
+        optimizer2 = chainer.optimizers.SGD(lr=initial_lr)
     else:
         optimizer2 = chainer.optimizers.MomentumSGD(lr=initial_lr)
     optimizer2.setup(model)
