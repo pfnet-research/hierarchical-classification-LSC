@@ -49,7 +49,7 @@ class Dataset(object):
             instances = self._instances[index]
 
             if self.sparse:
-                instances = np.array(csr_matrix.todense(instances))
+                instances = np.array(csr_matrix.todense(instances)).astype(np.float32)
 
             labels = self._labels[index]
 

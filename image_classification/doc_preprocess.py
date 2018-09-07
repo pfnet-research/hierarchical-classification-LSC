@@ -12,8 +12,8 @@ def load_data(f_train, f_test):
     train_data = load_svmlight_files([f_train])
     test_data = load_svmlight_files([f_test])
 
-    X, y = train_data[0], train_data[1]
-    test_X, test_y = test_data[0], test_data[1]
+    X, y = train_data[0], train_data[1].astype(np.int32)
+    test_X, test_y = test_data[0], test_data[1].astype(np.int32)
 
     label_map = {}
     new_label = 0
