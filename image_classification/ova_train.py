@@ -240,7 +240,7 @@ def main():
         train_transform = partial(general_transform, sparse=True)
         test_transform = partial(general_transform, sparse=True)
         if model_type == 'DocModel':
-            model = ova_network.DocModel(n_in=1199855, n_mid=unit, n_out=num_classes)
+            model = ova_network.DocModel(n_in=328282, n_mid=unit, n_out=num_classes)
         elif model_type == 'linear':
             model = ova_network.LinearModel(n_in=92586, n_out=num_classes)
         else:
@@ -261,6 +261,8 @@ def main():
             model = ova_network.CNN(num_classes)
         else:
             raise ValueError
+
+    print('num_classes: ' + str(num_classes))
 
     train = TransformDataset(train, train_transform)
     test = TransformDataset(test, test_transform)
