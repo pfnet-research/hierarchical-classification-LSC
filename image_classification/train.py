@@ -113,9 +113,9 @@ class Updater(chainer.training.StandardUpdater):
 
         xp = cuda.get_array_module(*instances)
         print((xp.argmax(y.data, axis=1)).shape)
-        print((0.1 * xp.take(xp.ones(y.data.shape), xp.argmax(y.data, axis=1), axis=1) / batchsize).shape)
+        print((0.1 * xp.take(xp.ones(y.data.shape), xp.argmax(y.data, axis=1), axis=0) / batchsize).shape)
         print(self.cum_y.shape)
-        self.cum_y = 0.1 * xp.take(xp.ones(y.data.shape), xp.argmax(y.data, axis=1), axis=1) / batchsize \
+        self.cum_y = 0.1 * xp.take(xp.ones(y.data.shape), xp.argmax(y.data, axis=1), axis=0) / batchsize \
                      + 0.9 * self.cum_y
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
