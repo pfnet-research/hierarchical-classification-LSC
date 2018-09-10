@@ -7,7 +7,7 @@ class LinearModel(chainer.Chain):
     def __init__(self, n_in, n_out):
         super(LinearModel, self).__init__()
         with self.init_scope():
-            self.w = L.Linear(n_in, n_out)
+            self.w = L.Linear(None, n_out)
 
     def conv(self, x, unchain=False):
         return x
