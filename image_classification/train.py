@@ -284,6 +284,7 @@ def main():
     parser.add_argument('--resume2', '-r2', default='',
                         help='resume the training from snapshot')
     parser.add_argument('--optimizer', '-op', type=str, default='Adam')
+    parser.add_argument('--optimizer2', '-op2', type=str, default='Adam')
     parser.add_argument('--initial_lr', type=float, default=0.05)
     parser.add_argument('--lr_decay_rate', type=float, default=0.5)
     parser.add_argument('--lr_decay_epoch', type=float, default=25)
@@ -303,7 +304,8 @@ def main():
     initial_lr = args.initial_lr
     lr_decay_rate = args.lr_decay_rate
     lr_decay_epoch = args.lr_decay_epoch
-    opt = args.optimizer
+    opt1 = args.optimizer
+    opt2 = args.optimizer2
     model_path = args.model_path
     rand_assign = args.random
     train_file = args.train_file
@@ -387,7 +389,10 @@ def main():
     if rand_assign:
         assignment, count_classes = random_assignment(num_clusters, num_classes)
     else:
-        optimizer = chainer.optimizers.Adam(alpha=alpha)
+        if opt1 == 'Adam':
+            optimizer = chainer.optimizers.Adam(alpha=alpha)
+        else:
+            optimizer = chainer.optimizers.SGD(lr=alpha)
         optimizer.setup(model)
 
         train = Dataset(*(train_instances, train_labels), sparse)
@@ -443,9 +448,9 @@ def main():
     start classification
     """
     model = h_net.HierarchicalNetwork(model, num_clusters, count_classes, n_in=n_in)
-    if opt == 'Adam':
+    if opt2 == 'Adam':
         optimizer2 = chainer.optimizers.Adam(alpha=initial_lr)
-    elif opt == 'SGD':
+    elif opt2 == 'SGD':
         optimizer2 = chainer.optimizers.SGD(lr=initial_lr)
     else:
         optimizer2 = chainer.optimizers.MomentumSGD(lr=initial_lr)
