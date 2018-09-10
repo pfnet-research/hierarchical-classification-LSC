@@ -105,7 +105,7 @@ class Updater(chainer.training.StandardUpdater):
         y = F.softmax(self.model(instances, unchain=True))
 
         print(F.sum(y, axis=0).shape)
-        
+
         tmp_y = 0.1 * (F.sum(y, axis=0) / batchsize) + 0.9 * self.cum_y
         H_Y = self.entropy(tmp_y, axis=0)
         H_YX = F.sum(self.entropy(y, axis=1), axis=0) / batchsize
@@ -114,9 +114,13 @@ class Updater(chainer.training.StandardUpdater):
         loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
 
         xp = cuda.get_array_module(*instances)
-        self.cum_y = 0.1 * xp.take(xp.ones(y.data.shape), xp.argmax(y.data, axis=1), axis=0) / batchsize \
-                     + 0.9 * self.cum_y
-        print(self.cum_y)
+
+        self.cum_y *= 0.9
+        for yy in y.data:
+            index = xp.argmax(yy)
+            self.cum_y[index] += 0.1 / batchsize
+        self.cum_y /= xp.linalg.norm(self.cum_y)
+
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
         with chainer.using_config('train', False):
             sampled_y = F.softmax(self.model(sampled_instances))
