@@ -111,7 +111,9 @@ class Updater(chainer.training.StandardUpdater):
         H_YX = 0
         loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
 
-        self.cum_y = 0.1 * np.ones(y.data.shape)[np.argmax(y.data, axis=1)] / batchsize + 0.9 * self.cum_y
+        xp = cuda.get_array_module(*instances)
+        self.cum_y = 0.1 * F.select_item(xp.ones(y.data.shape), xp.argmax(y.data, axis=1)) / batchsize \
+                     + 0.9 * self.cum_y
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
         with chainer.using_config('train', False):
