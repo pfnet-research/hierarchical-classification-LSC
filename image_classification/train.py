@@ -86,7 +86,10 @@ class Updater(chainer.training.StandardUpdater):
         self.data = data
         self.lam = lam
         self.mu = mu
+
         self.cum_y = np.ones(num_clusters) / num_clusters
+        if device >= 0:
+            self.cum_y = cuda.to_gpu(self.cum_y, device)
         super(Updater, self).__init__(iter, optimizer, device=device)
 
     def update_core(self):
@@ -102,12 +105,13 @@ class Updater(chainer.training.StandardUpdater):
         y = F.softmax(self.model(instances, unchain=True))
 
         tmp_y = 0.1 * y + 0.9 * self.cum_y
-        self.cum_y = 0.1 * np.ones(y.data.shape)[np.argmax(y.data, axis=1)] / batchsize + 0.9 * self.cum_y
         H_Y = self.entropy((F.sum(tmp_y, axis=0) / batchsize), axis=0)
         H_YX = F.sum(self.entropy(y, axis=1), axis=0) / batchsize
         chainer.reporter.report({'main/H_YX': H_YX})
         H_YX = 0
         loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
+
+        self.cum_y = 0.1 * np.ones(y.data.shape)[np.argmax(y.data, axis=1)] / batchsize + 0.9 * self.cum_y
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
         with chainer.using_config('train', False):
