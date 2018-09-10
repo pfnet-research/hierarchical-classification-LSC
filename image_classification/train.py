@@ -112,6 +112,7 @@ class Updater(chainer.training.StandardUpdater):
         loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
 
         xp = cuda.get_array_module(*instances)
+        print((xp.argmax(y.data, axis=1)).shape)
         print((0.1 * xp.take(xp.ones(y.data.shape), xp.argmax(y.data, axis=1), axis=1) / batchsize).shape)
         print(self.cum_y.shape)
         self.cum_y = 0.1 * xp.take(xp.ones(y.data.shape), xp.argmax(y.data, axis=1), axis=1) / batchsize \
