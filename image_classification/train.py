@@ -400,7 +400,8 @@ def main():
 
         train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize)
 
-        train_updater = Updater(model, train, train_iter, optimizer, device=gpu, mu=args.mu)
+        train_updater = Updater(model, train, train_iter, optimizer, num_clusters=num_clusters,
+                                device=gpu, mu=args.mu)
 
         trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
 
