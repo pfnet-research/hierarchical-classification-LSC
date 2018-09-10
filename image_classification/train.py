@@ -112,9 +112,10 @@ class Updater(chainer.training.StandardUpdater):
         loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
 
         xp = cuda.get_array_module(*instances)
-        print((0.1 * F.select_item(xp.ones(y.data.shape), xp.argmax(y.data, axis=0)) / batchsize).shape)
+        print(y.data.shape)
+        print((0.1 * F.select_item(xp.ones(y.data.shape), xp.argmax(y.data, axis=1)) / batchsize).shape)
         print(self.cum_y.shape)
-        self.cum_y = 0.1 * F.select_item(xp.ones(y.data.shape), xp.argmax(y.data, axis=0)) / batchsize \
+        self.cum_y = 0.1 * F.select_item(xp.ones(y.data.shape), xp.argmax(y.data, axis=1)) / batchsize \
                      + 0.9 * self.cum_y
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
