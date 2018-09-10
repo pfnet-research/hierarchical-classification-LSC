@@ -27,13 +27,13 @@ class DocModel(chainer.Chain):
             self.w2 = L.Linear(n_mid, n_out)
 
     def conv(self, x, unchain=False):
-        return F.relu(self.w1(x))
+        return F.sigmoid(self.w1(x))
 
     def cluster(self, h):
         return self.w2(h)
 
     def __call__(self, x, unchain=False):
-        h = F.relu(self.w1(x))
+        h = F.sigmoid(self.w1(x))
         return self.w2(h)
 
 

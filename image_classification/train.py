@@ -486,7 +486,7 @@ def main():
          'validation/main/loss', 'validation/main/loss_cluster',
          'validation/main/loss_class']))
 
-    if opt != 'Adam':
+    if opt2 != 'Adam':
         trainer.extend(extensions.ExponentialShift(
             'lr', lr_decay_rate), trigger=(lr_decay_epoch, 'epoch'))
 
