@@ -104,8 +104,6 @@ class Updater(chainer.training.StandardUpdater):
         instances, labels, sampled_instances = self.converter(batch, self.device)
         y = F.softmax(self.model(instances, unchain=True))
 
-        print(F.sum(y, axis=0).shape)
-
         tmp_y = 0.1 * (F.sum(y, axis=0) / batchsize) + 0.9 * self.cum_y
         H_Y = self.entropy(tmp_y, axis=0)
         H_YX = F.sum(self.entropy(y, axis=1), axis=0) / batchsize
@@ -120,6 +118,9 @@ class Updater(chainer.training.StandardUpdater):
             index = xp.argmax(yy)
             self.cum_y[index] += 0.1 / batchsize
         self.cum_y /= xp.linalg.norm(self.cum_y)
+        print(tmp_y)
+        print(self.cum_y)
+        print("")
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
         with chainer.using_config('train', False):
