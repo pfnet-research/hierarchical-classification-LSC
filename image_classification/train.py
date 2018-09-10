@@ -118,9 +118,6 @@ class Updater(chainer.training.StandardUpdater):
             index = xp.argmax(yy)
             self.cum_y[index] += 0.1 / batchsize
         self.cum_y /= xp.sum(self.cum_y)
-        print(tmp_y)
-        print(self.cum_y)
-        print("")
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
         with chainer.using_config('train', False):
