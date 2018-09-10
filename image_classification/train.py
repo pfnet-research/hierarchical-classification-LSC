@@ -81,7 +81,7 @@ class Dataset(object):
 
 
 class Updater(chainer.training.StandardUpdater):
-    def __init__(self, model, data, iter, optimizer, num_clusters = 30, lam=0.5, mu=10.0, device=-1):
+    def __init__(self, model, data, iter, optimizer, num_clusters=30, lam=0.5, mu=10.0, device=-1):
         self.model = model
         self.data = data
         self.lam = lam
@@ -104,7 +104,7 @@ class Updater(chainer.training.StandardUpdater):
         instances, labels, sampled_instances = self.converter(batch, self.device)
         y = F.softmax(self.model(instances, unchain=True))
 
-        tmp_y = 0.1 * (F.sum(y, axis=0) / batchsize) + 0.9 * self.cum_y
+        tmp_y = 0.01 * (F.sum(y, axis=0) / batchsize) + 0.99 * self.cum_y
         H_Y = self.entropy(tmp_y, axis=0)
         H_YX = F.sum(self.entropy(y, axis=1), axis=0) / batchsize
         chainer.reporter.report({'main/H_YX': H_YX})
@@ -113,10 +113,10 @@ class Updater(chainer.training.StandardUpdater):
 
         xp = cuda.get_array_module(*instances)
 
-        self.cum_y *= 0.9
+        self.cum_y *= 0.99
         for yy in y.data:
             index = xp.argmax(yy)
-            self.cum_y[index] += 0.1 / batchsize
+            self.cum_y[index] += 0.01 / batchsize
         self.cum_y /= xp.sum(self.cum_y)
 
         # sampled instancesがリストになっているが、これがnumpy arrayになっているハズ
