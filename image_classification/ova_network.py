@@ -35,7 +35,7 @@ class DocModel2(chainer.Chain):
 
     def __call__(self, x):
         h = F.relu(self.w1(x))
-        h = F.relu(self.w2(x))
+        h = F.relu(self.w2(h))
         return self.w3(h)
 
 
