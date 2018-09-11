@@ -232,7 +232,7 @@ def main():
             load_npz(model_path, model, not_load_list=['fc7'])
         else:
             raise ValueError
-    elif data_type == 'LSHTC1':
+    elif data_type == 'LSHTC1' or data_type == 'Dmoz':
         train, test, num_classes = doc_preprocess.load_data(f_train, f_test)
         train = Dataset(*train)
         test = Dataset(*test)
