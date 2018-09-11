@@ -241,6 +241,8 @@ def main():
         test_transform = partial(general_transform, sparse=True)
         if model_type == 'DocModel':
             model = ova_network.DocModel(n_in=328282, n_mid=unit, n_out=num_classes)
+        elif model_type == 'DocModel2':
+            model = ova_network.DocModel(n_in=328282, n_mid=unit, n_out=num_classes)
         elif model_type == 'linear':
             model = ova_network.LinearModel(n_in=92586, n_out=num_classes)
         else:

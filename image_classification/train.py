@@ -352,6 +352,8 @@ def main():
         num_classes = None
         if model_type == 'DocModel':
             model = network.DocModel(n_in=1024, n_mid=unit, n_out=num_clusters)
+        elif model_type == 'DocModel2':
+            model = network.DocModel2(n_in=1024, n_mid=unit, n_out=num_clusters)
         elif model_type == 'linear':
             model = network.LinearModel(n_in=92586, n_out=num_clusters)
         else:
