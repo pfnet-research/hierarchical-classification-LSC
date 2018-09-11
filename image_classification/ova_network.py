@@ -21,7 +21,7 @@ class DocModel(chainer.Chain):
             self.w2 = L.Linear(n_mid, n_out)
 
     def __call__(self, x):
-        h = self.w1(x)
+        h = F.relu(self.w1(x))
         return self.w2(h)
 
 
