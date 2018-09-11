@@ -25,6 +25,20 @@ class DocModel(chainer.Chain):
         return self.w2(h)
 
 
+class DocModel2(chainer.Chain):
+    def __init__(self, n_in, n_mid, n_out):
+        super(DocModel2, self).__init__()
+        with self.init_scope():
+            self.w1 = L.Linear(None, n_mid)
+            self.w2 = L.Linear(n_mid, n_mid)
+            self.w3 = L.Linear(n_mid, n_out)
+
+    def __call__(self, x):
+        h = F.relu(self.w1(x))
+        h = F.relu(self.w2(x))
+        return self.w3(h)
+
+
 class MLP(chainer.Chain):
     def __init__(self, n_units, n_out):
         super(MLP, self).__init__()
