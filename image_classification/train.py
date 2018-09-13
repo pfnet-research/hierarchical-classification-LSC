@@ -411,7 +411,7 @@ def main():
         trainer.extend(extensions.PrintReport(
             ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
              'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
-        # trainer.extend(extensions.snapshot(), trigger=(5, 'epoch'))
+        trainer.extend(extensions.snapshot(), trigger=(5, 'epoch'))
 
         if args.resume:
             chainer.serializers.load_npz(args.resume, trainer)
