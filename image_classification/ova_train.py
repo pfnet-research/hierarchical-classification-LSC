@@ -291,10 +291,10 @@ def main():
 
     trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
 
-    trainer.extend(extensions.Evaluator(test_iter, model, device=gpu))
-    trainer.extend(
-        extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
-        trigger=(20, 'epoch'))
+    # trainer.extend(extensions.Evaluator(test_iter, model, device=gpu))
+    # trainer.extend(
+        # extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
+        # trigger=(20, 'epoch'))
     trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'iteration', 'main/loss', 'validation/main/accuracy',
