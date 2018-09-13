@@ -27,6 +27,7 @@ class Accuracy(chainer.Chain):
             accuracy = acc_num / total
             reporter.report({'cluster_accuracy': accuracy}, self)
 
+        """
         xp = cuda.get_array_module(*instances)
         batchsize = len(instances)
 
@@ -53,6 +54,7 @@ class Accuracy(chainer.Chain):
         reporter.report({'loss': loss}, self)
         chainer.reporter.report({'loss_cluster': loss_cluster}, self)
         chainer.reporter.report({'loss_class': loss_class}, self)
+        """
 
     @staticmethod
     def mle_loss(p):

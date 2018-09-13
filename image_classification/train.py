@@ -470,16 +470,14 @@ def main():
     test = dataset.Dataset(test_instances, test_labels, assignment, _transform=test_transform, sparse=sparse)
 
     train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize2)
-    test_iter = chainer.iterators.SerialIterator(test, batch_size=args.batchsize2, repeat=False)
+    test_iter = chainer.iterators.SerialIterator(test, batch_size=1, repeat=False)
 
     train_updater = updater.Updater(model, train, train_iter, optimizer2, num_clusters, device=gpu)
 
     trainer = training.Trainer(train_updater, (args.epoch2, 'epoch'), args.out)
 
-    """
     acc = accuracy.Accuracy(model, assignment, num_clusters)
     trainer.extend(extensions.Evaluator(test_iter, acc, device=gpu))
-    """
 
     """
     trainer.extend(

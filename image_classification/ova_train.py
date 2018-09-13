@@ -285,13 +285,13 @@ def main():
         optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
 
     train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
-    test_iter = chainer.iterators.SerialIterator(test, batch_size=args.batchsize, repeat=False, shuffle=False)
+    test_iter = chainer.iterators.SerialIterator(test, batch_size=1, repeat=False, shuffle=False)
 
     train_updater = chainer.training.StandardUpdater(train_iter, optimizer, device=gpu)
 
     trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
 
-    # trainer.extend(extensions.Evaluator(test_iter, model, device=gpu))
+    trainer.extend(extensions.Evaluator(test_iter, model, device=gpu))
     # trainer.extend(
         # extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
         # trigger=(20, 'epoch'))
