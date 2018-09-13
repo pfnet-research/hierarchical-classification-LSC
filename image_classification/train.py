@@ -400,7 +400,7 @@ def main():
         train = Dataset(*(train_instances, train_labels), sparse)
         test = Dataset(*(test_instances, test_labels), sparse)
 
-        train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize)
+        train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize)
 
         train_updater = Updater(model, train, train_iter, optimizer, num_clusters=num_clusters,
                                 device=gpu, mu=args.mu)
@@ -411,7 +411,7 @@ def main():
         trainer.extend(extensions.PrintReport(
             ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
              'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
-        trainer.extend(extensions.snapshot(), trigger=(5, 'epoch'))
+        # trainer.extend(extensions.snapshot(), trigger=(5, 'epoch'))
 
         if args.resume:
             chainer.serializers.load_npz(args.resume, trainer)
@@ -469,25 +469,28 @@ def main():
     train = dataset.Dataset(train_instances, train_labels, assignment, _transform=train_transform, sparse=sparse)
     test = dataset.Dataset(test_instances, test_labels, assignment, _transform=test_transform, sparse=sparse)
 
-    train_iter = chainer.iterators.MultiprocessIterator(train, batch_size=args.batchsize2)
-    test_iter = chainer.iterators.MultiprocessIterator(test, batch_size=args.batchsize2, repeat=False)
+    train_iter = chainer.iterators.SerialIterator(train, batch_size=args.batchsize2)
+    test_iter = chainer.iterators.SerialIterator(test, batch_size=args.batchsize2, repeat=False)
 
     train_updater = updater.Updater(model, train, train_iter, optimizer2, num_clusters, device=gpu)
 
     trainer = training.Trainer(train_updater, (args.epoch2, 'epoch'), args.out)
 
+    """
     acc = accuracy.Accuracy(model, assignment, num_clusters)
     trainer.extend(extensions.Evaluator(test_iter, acc, device=gpu))
+    """
 
+    """
     trainer.extend(
         extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
         trigger=(20, 'epoch'))
+    """
     trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'main/loss', 'main/loss_cluster', 'main/loss_class',
          'validation/main/accuracy', 'validation/main/cluster_accuracy',
-         'validation/main/loss', 'validation/main/loss_cluster',
-         'validation/main/loss_class']))
+         'validation/main/loss', 'elapsed_time']))
 
     if opt2 != 'Adam':
         trainer.extend(extensions.ExponentialShift(
