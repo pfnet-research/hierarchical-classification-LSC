@@ -477,7 +477,7 @@ def main():
     trainer = training.Trainer(train_updater, (args.epoch2, 'epoch'), args.out)
 
     acc = accuracy.Accuracy(model, assignment, num_clusters)
-    trainer.extend(extensions.Evaluator(test_iter, acc, device=gpu))
+    # trainer.extend(extensions.Evaluator(test_iter, acc, device=gpu))
 
     """
     trainer.extend(
