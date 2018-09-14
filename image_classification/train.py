@@ -407,7 +407,7 @@ def main():
 
         trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
 
-        trainer.extend(extensions.LogReport(trigger=(1000, 'iteration')))
+        trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
         trainer.extend(extensions.PrintReport(
             ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
              'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
