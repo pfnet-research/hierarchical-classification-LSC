@@ -289,7 +289,7 @@ def main():
 
     train_updater = chainer.training.StandardUpdater(train_iter, optimizer, device=gpu)
 
-    trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
+    trainer = training.Trainer(train_updater, (1000, 'iteration'), out=args.out)
 
     # trainer.extend(extensions.Evaluator(test_iter, model, device=gpu))
     # trainer.extend(

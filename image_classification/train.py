@@ -407,7 +407,7 @@ def main():
 
         trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
 
-        trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
+        trainer.extend(extensions.LogReport(trigger=(1000, 'iteration')))
         trainer.extend(extensions.PrintReport(
             ['epoch', 'iteration', 'main/loss', 'main/loss_cc',
              'main/loss_mut_info', 'main/H_Y', 'main/H_YX', 'elapsed_time']))
@@ -484,7 +484,7 @@ def main():
         extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
         trigger=(20, 'epoch'))
     """
-    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
+    trainer.extend(extensions.LogReport(trigger=(1000, 'iteration')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'main/loss', 'main/loss_cluster', 'main/loss_class',
          'validation/main/accuracy', 'validation/main/cluster_accuracy',
