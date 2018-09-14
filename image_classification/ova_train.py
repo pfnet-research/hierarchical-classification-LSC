@@ -289,13 +289,13 @@ def main():
 
     train_updater = chainer.training.StandardUpdater(train_iter, optimizer, device=gpu)
 
-    trainer = training.Trainer(train_updater, (1000, 'iteration'), out=args.out)
+    trainer = training.Trainer(train_updater, (args.epoch, 'epoch'), out=args.out)
 
     # trainer.extend(extensions.Evaluator(test_iter, model, device=gpu))
     # trainer.extend(
         # extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
         # trigger=(20, 'epoch'))
-    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
+    trainer.extend(extensions.LogReport(trigger=(100, 'iteration')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'iteration', 'main/loss', 'validation/main/accuracy',
          'validation/main/loss', 'elapsed_time']))
