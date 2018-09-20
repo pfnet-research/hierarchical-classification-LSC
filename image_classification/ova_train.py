@@ -31,7 +31,6 @@ import dataset
 import updater
 import accuracy
 
-
 USE_OPENCV = True
 
 
