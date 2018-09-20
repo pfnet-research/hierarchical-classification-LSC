@@ -76,18 +76,20 @@ def get_cifar100(withlabel=True, ndim=3, scale=1.):
         datasets are arrays of images.
 
     """
-    print("get-cifar100")
     return _get_cifar('cifar-100', withlabel, ndim, scale)
 
 
 def _get_cifar(name, withlabel, ndim, scale):
-    root = download.get_dataset_directory(os.path.join('pfnet', 'chainer',
-                                                       'cifar'))
+    # root = download.get_dataset_directory(os.path.join('pfnet', 'chainer',
+    #                                                  'cifar'))
+    root = '/home/user/.chainer/dataset/pfnet/chainer/cifar'
+    print(root)
     if name == 'cifar-100':
         npz_path = os.path.join(root+'100', '{}.npz'.format(name))
     else:
         npz_path = os.path.join(root, '{}.npz'.format(name))
     url = 'https://www.cs.toronto.edu/~kriz/{}-python.tar.gz'.format(name)
+    print(npz_path)
 
     def creator(path):
         archive_path = download.cached_download(url)
@@ -132,7 +134,6 @@ def _get_cifar(name, withlabel, ndim, scale):
         return {'train_x': train_x, 'train_y': train_y,
                 'test_x': test_x, 'test_y': test_y}
 
-    print(npz_path)
     raw = download.cache_or_load_file(npz_path, creator, numpy.load)
     train = _preprocess_cifar(raw['train_x'], raw['train_y'], withlabel,
                               ndim, scale)
