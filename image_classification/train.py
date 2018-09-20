@@ -81,10 +81,9 @@ class Dataset(object):
 
 
 class Updater(chainer.training.StandardUpdater):
-    def __init__(self, model, data, iter, optimizer, num_clusters=30, lam=0.5, mu=10.0, device=-1):
+    def __init__(self, model, data, iter, optimizer, num_clusters=30, mu=10.0, device=-1):
         self.model = model
         self.data = data
-        self.lam = lam
         self.mu = mu
 
         self.cum_y = np.ones(num_clusters) / num_clusters
@@ -108,8 +107,7 @@ class Updater(chainer.training.StandardUpdater):
         H_Y = self.entropy(tmp_y, axis=0)
         H_YX = F.sum(self.entropy(y, axis=1), axis=0) / batchsize
         chainer.reporter.report({'main/H_YX': H_YX})
-        H_YX = 0
-        loss_mut_info = - self.lam * (self.mu * H_Y - H_YX)
+        loss_mut_info = - self.mu * H_Y
 
         xp = cuda.get_array_module(*instances)
 
