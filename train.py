@@ -130,43 +130,54 @@ def load_npz(file, obj, path='', strict=True, not_load_list=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Chainer example: MNIST')
+    parser = argparse.ArgumentParser(description='Hierarchical Clustering and Classification')
     parser.add_argument('--batchsize', '-b', type=int, default=256,
-                        help='Number of images in each mini-batch')
+                        help='Number of images in each mini-batch for clustering')
     parser.add_argument('--batchsize2', '-b2', type=int, default=64,
-                        help='Number of images in each mini-batch')
-    parser.add_argument('--data_type', '-d', type=str, default='LSHTC1')
-    parser.add_argument('--model_type', '-m', type=str, default='DocModel')
-    parser.add_argument('--model_path', '-mp', type=str,
-                        default='./models/ResNet50_model_500.npz')
-    parser.add_argument('--gpu', '-g', type=int, default=-1)
-    parser.add_argument('--cluster', '-c', type=int, default=100)
-    parser.add_argument('--weight_decay', '-w', type=float, default=0.0000)
-    parser.add_argument('--unit', '-u', type=int, default=300)
-    parser.add_argument('--alpha', '-a', type=float, default=0.001)
-    parser.add_argument('--epoch', '-e', type=int, default=10)
-    parser.add_argument('--epoch2', '-e2', type=int, default=10)
-    parser.add_argument('--mu', '-mu', type=float, default=30.0)
-    parser.add_argument('--out', '-o', type=str, default='results')
-
-    parser.add_argument('--train_file', '-train_f', type=str, default='dataset/LSHTC1/LSHTC1_selected03.train')
-    parser.add_argument('--test_file', '-test_f', type=str, default='dataset/LSHTC1/LSHTC1_selected03.test')
-
-    parser.add_argument('--train_instance', '-train_i', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
-    parser.add_argument('--train_label', '-train_l', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
-    parser.add_argument('--test_instance', '-test_i', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
-    parser.add_argument('--test_label', '-test_l', type=str, default='PDSparse/examples/LSHTC1/LSHTC1.train')
-
+                        help='Number of images in each mini-batch for classification')
+    parser.add_argument('--data_type', '-d', type=str, default='LSHTC1',
+                        help='dataset name')
+    parser.add_argument('--model_type', '-m', type=str, default='DocModel',
+                        help='model to use')
+    parser.add_argument('--model_path', '-mp', type=str, default='',
+                        help='pre-trained model if necessary')
+    parser.add_argument('--gpu', '-g', type=int, default=-1,
+                        help='gpu number to use')
+    parser.add_argument('--cluster', '-c', type=int, default=100,
+                        help='the size of cluster')
+    parser.add_argument('--weight_decay', '-w', type=float, default=0.0000,
+                        help='weight decay for classification')
+    parser.add_argument('--unit', '-u', type=int, default=300,
+                        help='unit size for DocModel')
+    parser.add_argument('--alpha', '-a', type=float, default=0.001,
+                        help='learning rate for clustering')
+    parser.add_argument('--epoch', '-e', type=int, default=10,
+                        help='the number of epochs for clustering')
+    parser.add_argument('--epoch2', '-e2', type=int, default=10,
+                        help='the number of epochs for classification')
+    parser.add_argument('--mu', '-mu', type=float, default=30.0,
+                        help='the hyper-parameter for clustering')
+    parser.add_argument('--out', '-o', type=str, default='results',
+                        help='output directory for result file')
+    parser.add_argument('--train_file', '-train_f', type=str, default='',
+                        help='training dataset file')
+    parser.add_argument('--test_file', '-test_f', type=str, default='',
+                        help='test dataset file')
     parser.add_argument('--seed', '-s', type=int, default=0)
     parser.add_argument('--resume', '-r', default='',
                         help='resume the training from snapshot')
     parser.add_argument('--resume2', '-r2', default='',
                         help='resume the training from snapshot')
-    parser.add_argument('--optimizer', '-op', type=str, default='Adam')
-    parser.add_argument('--optimizer2', '-op2', type=str, default='Adam')
-    parser.add_argument('--initial_lr', type=float, default=0.05)
-    parser.add_argument('--lr_decay_rate', type=float, default=0.5)
-    parser.add_argument('--lr_decay_epoch', type=float, default=25)
+    parser.add_argument('--optimizer', '-op', type=str, default='Adam',
+                        help='optimizer for clustering')
+    parser.add_argument('--optimizer2', '-op2', type=str, default='Adam',
+                        help='optimizer for classification')
+    parser.add_argument('--initial_lr', type=float, default=0.001,
+                        help='initial learning rate for classification')
+    parser.add_argument('--lr_decay_rate', type=float, default=0.5,
+                        help='decay rate for classification if MomentumSGD is used')
+    parser.add_argument('--lr_decay_epoch', type=float, default=25,
+                        help='decay epoch for classification if MomentumSGD is used')
     parser.add_argument('--random', action='store_true', default=False,
                         help='Use random assignment or not')
     parser.add_argument('--valid', '--v', action='store_true',
@@ -310,8 +321,6 @@ def main():
         del train
         del test
 
-    print(count_classes)
-
     """
     start classification
     """
@@ -344,11 +353,9 @@ def main():
     acc = accuracy.Accuracy(model, assignment, num_clusters)
     trainer.extend(extensions.Evaluator(test_iter, acc, device=gpu))
 
-    """
     trainer.extend(
         extensions.snapshot(filename='snapshot_iter_{.updater.iteration}.npz'),
         trigger=(20, 'epoch'))
-    """
     trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
     trainer.extend(extensions.PrintReport(
         ['epoch', 'main/loss', 'main/loss_cluster', 'main/loss_class',
