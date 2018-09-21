@@ -133,17 +133,17 @@ def main():
     parser = argparse.ArgumentParser(description='Hierarchical Clustering and Classification')
     parser.add_argument('--batchsize', '-b', type=int, default=256,
                         help='Number of images in each mini-batch for clustering')
-    parser.add_argument('--batchsize2', '-b2', type=int, default=64,
+    parser.add_argument('--batchsize2', '-b2', type=int, default=256,
                         help='Number of images in each mini-batch for classification')
-    parser.add_argument('--data_type', '-d', type=str, default='LSHTC1',
+    parser.add_argument('--data_type', '-d', type=str, default='toy',
                         help='dataset name')
-    parser.add_argument('--model_type', '-m', type=str, default='DocModel',
+    parser.add_argument('--model_type', '-m', type=str, default='linear',
                         help='model to use')
     parser.add_argument('--model_path', '-mp', type=str, default='',
                         help='pre-trained model if necessary')
     parser.add_argument('--gpu', '-g', type=int, default=-1,
                         help='gpu number to use')
-    parser.add_argument('--cluster', '-c', type=int, default=100,
+    parser.add_argument('--cluster', '-c', type=int, default=2,
                         help='the size of cluster')
     parser.add_argument('--weight_decay', '-w', type=float, default=0.0000,
                         help='weight decay for classification')
@@ -211,9 +211,7 @@ def main():
     test_transform = None
     if data_type == 'toy':
         model = network.LinearModel(2, 2)
-        num_classes = 4
     elif data_type == 'mnist':
-        num_classes = 10
         if model_type == 'linear':
             model = network.LinearModel(784, num_clusters)
         elif model_type == 'DNN':
@@ -224,7 +222,6 @@ def main():
         else:
             raise ValueError
     elif data_type == 'cifar100':
-        num_classes = 100
         train_transform = partial(dataset.transform, mean=0.0, std=1.0, train=True)
         test_transform = partial(dataset.transform, mean=0.0, std=1.0, train=False)
         if model_type == 'Resnet50':
@@ -239,7 +236,6 @@ def main():
             raise ValueError
     elif data_type == 'LSHTC1':
         sparse = True
-        num_classes = None
         if model_type == 'DocModel':
             model = network.DocModel(n_in=1024, n_mid=unit, n_out=num_clusters)
         elif model_type == 'DocModel2':
@@ -250,7 +246,6 @@ def main():
             raise ValueError
     elif data_type == 'Dmoz':
         sparse = True
-        num_classes = None
         if model_type == 'DocModel':
             model = network.DocModel(n_in=561127, n_mid=unit, n_out=num_clusters)
         elif model_type == 'linear':
@@ -258,7 +253,6 @@ def main():
         else:
             raise ValueError
     else:
-        num_classes = 10
         if model_type == 'Resnet50':
             model = network.ResNet50(num_clusters)
         elif model_type == 'Resnet101':
