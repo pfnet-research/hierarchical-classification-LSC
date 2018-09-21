@@ -133,7 +133,7 @@ def main():
     parser = argparse.ArgumentParser(description='Hierarchical Clustering and Classification')
     parser.add_argument('--batchsize', '-b', type=int, default=256,
                         help='Number of images in each mini-batch for clustering')
-    parser.add_argument('--batchsize2', '-b2', type=int, default=256,
+    parser.add_argument('--batchsize2', '-b2', type=int, default=64,
                         help='Number of images in each mini-batch for classification')
     parser.add_argument('--data_type', '-d', type=str, default='toy',
                         help='dataset name')
@@ -153,9 +153,9 @@ def main():
                         help='learning rate for clustering')
     parser.add_argument('--epoch', '-e', type=int, default=10,
                         help='the number of epochs for clustering')
-    parser.add_argument('--epoch2', '-e2', type=int, default=10,
+    parser.add_argument('--epoch2', '-e2', type=int, default=100,
                         help='the number of epochs for classification')
-    parser.add_argument('--mu', '-mu', type=float, default=30.0,
+    parser.add_argument('--mu', '-mu', type=float, default=150.0,
                         help='the hyper-parameter for clustering')
     parser.add_argument('--out', '-o', type=str, default='results',
                         help='output directory for result file')
@@ -315,6 +315,7 @@ def main():
         del train
         del test
 
+        print(assignment)
     """
     start classification
     """
