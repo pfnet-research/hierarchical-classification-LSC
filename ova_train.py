@@ -19,7 +19,6 @@ import ova_network
 from importlib import import_module
 import sys, os
 import numpy as np
-import hierarchy_network as h_net
 from scipy.sparse import csr_matrix
 
 import cifar
@@ -28,7 +27,6 @@ import mnist
 import doc_preprocess
 import separate
 import dataset
-import updater
 import accuracy
 
 USE_OPENCV = True

@@ -17,11 +17,12 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from network import hierarchy_network as h_net
-from network import network
+from network import network, hierarychy_classifier
 import clustering
 import cifar
 import mnist
 import doc_preprocess
+import dataset
 
 import separate
 import accuracy
